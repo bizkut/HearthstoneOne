@@ -1,0 +1,29 @@
+# Core
+torch>=2.0.0
+pytorch-lightning>=2.0.0
+onnxruntime-gpu>=1.16.0
+
+# Simulator
+fireplace @ git+https://github.com/jleclanche/fireplace.git
+
+# GUI
+PyQt6>=6.5.0
+matplotlib>=3.7.0
+
+# API
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+
+# Data
+sqlalchemy>=2.0.0
+
+# Utils
+watchdog>=3.0.0
+numpy>=1.24.0
+pyyaml>=6.0.0
+tqdm>=4.65.0
+
+# Dev
+pytest>=7.4.0
+pytest-cov>=4.1.0
+black>=23.0.0

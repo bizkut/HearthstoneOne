@@ -1,0 +1,38 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Models
+models/*.onnx
+models/*.pt
+!models/.gitkeep
+
+# Data
+data/*.db
+data/*.sqlite
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Training
+checkpoints/
+runs/
+
+# Config (local)
+config.local.yaml

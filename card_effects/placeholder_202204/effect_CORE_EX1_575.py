@@ -1,0 +1,7 @@
+"""Effect for CORE_EX1_575 in PLACEHOLDER_202204"""
+
+def setup(game, source):
+    def on_end(game, trig_src):
+        if game.current_player == trig_src.controller:
+            trig_src.controller.draw(1)
+    game.register_trigger('on_turn_end', source, on_end)

@@ -1,0 +1,4 @@
+"""Effect for ETC_363 in BATTLE_OF_THE_BANDS"""
+
+def on_play(game, source, target):
+    source.controller.hero.gain_armor(2)

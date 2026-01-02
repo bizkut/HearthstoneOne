@@ -1,0 +1,4 @@
+"""Effect for DRG_213 in DRAGONS"""
+
+def battlecry(game, source, target):
+    if target: game.deal_damage(target, 4, source)

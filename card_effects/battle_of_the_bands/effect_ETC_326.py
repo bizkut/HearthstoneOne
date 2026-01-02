@@ -1,0 +1,4 @@
+"""Effect for ETC_326 in BATTLE_OF_THE_BANDS"""
+
+def battlecry(game, source, target):
+    source.controller.draw(1) # Simplified Discover
