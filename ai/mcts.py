@@ -195,6 +195,7 @@ class MCTS:
         # Execute on new_game using wrapper logic
         # We can reuse HearthstoneGame helper methods if we had them exposed statically
         # Or instantiate a temporary wrapper
+        from .game_wrapper import HearthstoneGame
         wrapper = HearthstoneGame()
         wrapper._game = new_game
         

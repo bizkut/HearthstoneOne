@@ -9,10 +9,13 @@ Le format est basé sur [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/)
 ## [Unreleased]
 
 ### 🚧 En cours
-- **Phase 4**: Data Collection & Training Loop (DataCollector, ReplayBuffer, Trainer)
-- Intégration complète du MCTS dans la boucle d'auto-play.
+- **Phase 5**: Evaluation & Metrics
 
 ### Added
+- **Phase 4 (Training Pipeline)**:
+    - `training/trainer.py`: Boucle complète AlphaZero (Self-play -> Train -> Checkpoint). Validation positive (Loss decreasing).
+    - `training/data_collector.py`: Génération de parties self-play avec MCTS.
+    - `ai/replay_buffer.py`: Gestion de la mémoire d'expérience (Trajectoires & Value Targets).
 - **Phase 3 (Core AI)**:
     - **FeatureEncoder** (`ai/encoder.py`): Encodage vectoriel de l'état du jeu (690 dimensions).
     - **HearthstoneModel** (`ai/model.py`): Architecture Neuronale Actor-Critic (Policy Head + Value Head).

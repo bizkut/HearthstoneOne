@@ -20,16 +20,24 @@
 
 > **Note**: Phase 1 réutilisable - nos structures de données et wrapper sont compatibles avec un nouveau simulateur.
 
-## Phase 2: Self-Play Engine
-- [x] `self_play.py` - Moteur de parties automatisées (Validé avec 100 parties)
-- [ ] `data_collector.py` - Collecte des trajectoires (Intégré dans MCTS)
-- [ ] `replay_buffer.py` - Buffer pour l'entraînement (Intégré dans Trainer)
+## Phase 2: Self-Play Engine ✅
+- [x] `self_play.py` - Moteur de parties automatisées
 - [x] Tests self-play
 
-## Phase 3: Core AI (MCTS + NN)
-- [ ] `model.py` - Neural Network Transformer
-- [ ] `encoder.py` - Encodage état/actions
-- [ ] `mcts.py` - Monte Carlo Tree Search
-- [ ] Tests AI core
+## Phase 3: Core AI (MCTS + NN) ✅
+- [x] `model.py` - Neural Network (Actor-Critic)
+- [x] `encoder.py` - Encodage état/actions
+- [x] `mcts.py` - Monte Carlo Tree Search
+- [x] `game.py` - Game State Cloning pour simulation
+- [x] Tests AI core
 
-## Phase 4-10: (voir plan précédent)
+## Phase 4: Training Loop & Data ✅
+- [x] `ai/replay_buffer.py` - Stockage optimisé des trajectoires (States, Pi, Z)
+- [x] `training/data_collector.py` - Script de self-play parallèle avec MCTS
+- [x] `training/trainer.py` - Boucle d'optimisation PyTorch
+- [x] Entraînement initial (Proof of Life) - Validé (Loss qui descend)
+
+## Phase 5: Evaluation & Optimisation
+- [ ] `evaluation.py` - Script Arena (Model vs Random, Model vs Model)
+- [ ] Optimisation MCTS (Parallélisation, Caching)
+- [ ] Hyperparameter Tuning
