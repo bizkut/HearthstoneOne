@@ -37,7 +37,17 @@
 - [x] `training/trainer.py` - Boucle d'optimisation PyTorch
 - [x] Entraînement initial (Proof of Life) - Validé (Loss qui descend)
 
-## Phase 5: Evaluation & Optimisation
-- [ ] `evaluation.py` - Script Arena (Model vs Random, Model vs Model)
-- [ ] Optimisation MCTS (Parallélisation, Caching)
+## Phase 5: Evaluation & Optimisation 🚧
+- [x] Script `evaluation.py` (Arena basique)
+- [ ] Optimisation MCTS (Vitesse d'exécution critique !)
 - [ ] Hyperparameter Tuning
+
+## Phase 6: Interface Graphique (GUI) 🔜
+- [ ] `gui/main_window.py` (PyQt6)
+- [ ] Dashboard des stats d'entraînement
+- [ ] Visualisation du Replay Buffer
+
+## Phase 7: Overlay & Live Game 🔜
+- [ ] `runtime/log_watcher.py` (Parser le Power.log du vrai jeu)
+- [ ] `overlay/overlay_window.py` (Fenêtre transparente)
+- [ ] Intégration IA en temps réel (Inférence ONNX)
