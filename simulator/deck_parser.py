@@ -54,8 +54,20 @@ def parse_deckstring(deckstring: str) -> DeckInfo:
     Example:
         >>> deck = parse_deckstring("AAEBAf0EBu0F...")
         >>> print(deck.cards)  # [(1234, 2), (5678, 1), ...]
+        
+    Raises:
+        ValueError: If deckstring is empty, invalid, or has wrong version
     """
-    decoded = base64.b64decode(deckstring)
+    if not deckstring or not deckstring.strip():
+        raise ValueError("Empty deckstring")
+    
+    deckstring = deckstring.strip()
+    
+    try:
+        decoded = base64.b64decode(deckstring)
+    except Exception as e:
+        raise ValueError(f"Invalid base64 encoding: {e}")
+    
     data = BytesIO(decoded)
 
     # Header
@@ -126,22 +138,17 @@ def load_deck_from_string(game, player, deckstring: str) -> bool:
         print(f"Failed to parse deckstring: {e}")
         return False
     
-    db = CardDatabase.get_instance()
-    db.load()
-    
-    # Build reverse lookup: dbf_id -> card_id
-    dbf_to_card_id: Dict[int, str] = {}
-    for card_id, card_data in db._cards.items():
-        if hasattr(card_data, 'dbf_id'):
-            dbf_to_card_id[card_data.dbf_id] = card_id
+    # Ensure database is loaded (this also populates _dbf_to_card)
+    CardDatabase.load()
     
     # Clear existing deck
     player.deck.clear()
     
-    # Load cards
+    # Load cards using the built-in DBF lookup
     loaded = 0
+    missing = []
     for dbf_id, count in deck_info.cards:
-        card_id = dbf_to_card_id.get(dbf_id)
+        card_id = CardDatabase.get_card_id_by_dbf(dbf_id)
         if card_id:
             for _ in range(count):
                 card = create_card(card_id, game)
@@ -149,8 +156,13 @@ def load_deck_from_string(game, player, deckstring: str) -> bool:
                     card.controller = player
                     player.deck.append(card)
                     loaded += 1
+        else:
+            missing.append(dbf_id)
     
     player.shuffle_deck()
+    
+    if missing:
+        print(f"Warning: {len(missing)} cards not found in database (DBF IDs: {missing[:5]}...)")
     print(f"Loaded {loaded}/{deck_info.card_count} cards from deck code")
     return loaded > 0
 
