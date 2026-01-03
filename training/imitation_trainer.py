@@ -125,8 +125,9 @@ class ImitationTrainer:
             # Forward pass
             policy, value = self.model(card_ids, card_features, attention_mask)
             
-            # Policy loss (cross-entropy)
-            policy_loss = F.cross_entropy(torch.log(policy + 1e-8), action_labels)
+            # Policy loss (NLL for log-probabilities)
+            log_policy = torch.log(policy + 1e-8)
+            policy_loss = F.nll_loss(log_policy, action_labels)
             
             # Value loss (MSE with game outcome)
             value_loss = F.mse_loss(value, outcomes)
@@ -172,7 +173,8 @@ class ImitationTrainer:
                 total += action_labels.size(0)
                 
                 # Loss
-                policy_loss = F.cross_entropy(torch.log(policy + 1e-8), action_labels)
+                log_policy = torch.log(policy + 1e-8)
+                policy_loss = F.nll_loss(log_policy, action_labels)
                 value_loss = F.mse_loss(value, outcomes)
                 total_loss += (policy_loss + 0.5 * value_loss).item()
         

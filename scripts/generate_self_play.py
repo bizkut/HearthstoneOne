@@ -316,6 +316,14 @@ class SelfPlayGenerator:
             # Execute action
             if action['type'] == 'PLAY':
                 card = action['card']
+                
+                # Calculate action label BEFORE playing (card still in hand)
+                # Action Space: 0-9 = Play hand card index 0-9
+                try:
+                    card_index = player.hand.index(card)
+                except ValueError:
+                    card_index = 0
+                
                 game.play_card(card, action.get('target'))
                 
                 # Record sample
@@ -324,7 +332,7 @@ class SelfPlayGenerator:
                     game_samples.append({
                         'card_ids': c_ids.tolist(),
                         'card_features': c_feats.tolist(),
-                        'action_label': 0,
+                        'action_label': card_index,  # Proper action index
                         'played_card': card.card_id,
                         'player_idx': pid
                     })
@@ -336,13 +344,13 @@ class SelfPlayGenerator:
                 
             elif action['type'] == 'HERO_POWER':
                 if game.use_hero_power(target=action.get('target')):
-                    # Create a sample for hero power use
+                    # Action Space: 10 = Use Hero Power
                     try:
                         c_ids, c_feats, mask = self.encoder.encode(state)
                         game_samples.append({
                             'card_ids': c_ids.tolist(),
                             'card_features': c_feats.tolist(),
-                            'action_label': 0, # TODO: Separate label for hero power
+                            'action_label': 10,  # Hero Power action index
                             'played_card': player.hero.hero_power.card_id if player.hero and player.hero.hero_power else 'HERO_POWER',
                             'player_idx': pid
                         })
