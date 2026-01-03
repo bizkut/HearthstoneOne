@@ -66,6 +66,23 @@ class LogParser:
         if opponent_id <= len(self.game.players):
             return self.game.players[opponent_id - 1]
         return None
+    
+    def _reset_state(self):
+        """Reset all parser state for a new game."""
+        self.entity_map.clear()
+        self.player_entity_map.clear()
+        self.pending_entities.clear()
+        self.player_names.clear()
+        self.local_player_id = 2  # Reset to default
+        self.current_entity_id = None
+        self.current_entity_tags.clear()
+        
+        # Clear player hands and boards in the game object
+        for player in self.game.players:
+            player.hand.clear()
+            player.board.clear()
+            player.graveyard.clear()
+            player.mana = 0
         
     def parse_line(self, line: str):
         """Parse a single log line."""
@@ -95,6 +112,12 @@ class LogParser:
             content = match.group(1).strip()
         else:
             content = line
+        
+        # Detect new game and reset state
+        if 'CREATE_GAME' in content:
+            print("[Parser] New game detected - resetting state")
+            self._reset_state()
+            return
         
         # Handle different line types
         if content.startswith('TAG_CHANGE'):

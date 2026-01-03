@@ -99,20 +99,25 @@ class OverlayWindow(QMainWindow):
             pass  # Silently ignore tracking errors
     
     def showEvent(self, event):
-        """Called when window is shown. Apply macOS-specific click-through."""
+        """Called when window is shown. Apply macOS-specific click-through and stay-on-top."""
         super().showEvent(event)
         
         if getattr(self, '_needs_macos_passthrough', False):
             try:
-                # Use Objective-C bridge to set NSWindow.ignoresMouseEvents
-                from AppKit import NSApplication
+                # Use Objective-C bridge for NSWindow properties
+                from AppKit import NSApplication, NSFloatingWindowLevel, NSScreenSaverWindowLevel
                 
                 # Get the NSWindow for this Qt window
                 ns_app = NSApplication.sharedApplication()
                 for ns_window in ns_app.windows():
                     if "HearthstoneOne" in str(ns_window.title()):
+                        # Make clicks pass through
                         ns_window.setIgnoresMouseEvents_(True)
-                        print("[Overlay] macOS click-through enabled")
+                        # Use screen saver level to stay above all windows including fullscreen
+                        ns_window.setLevel_(NSScreenSaverWindowLevel)
+                        # Keep it from being included in window lists
+                        ns_window.setCollectionBehavior_(1 << 7)  # NSWindowCollectionBehaviorStationary
+                        print("[Overlay] macOS click-through and stay-on-top enabled")
                         break
             except Exception as e:
                 print(f"[Overlay] macOS passthrough failed: {e}")
