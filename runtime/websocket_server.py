@@ -28,6 +28,7 @@ try:
     import torch
     from ai.encoder import FeatureEncoder
     from ai.model import HearthstoneModel
+    from ai.transformer_model import CardTransformer, SequenceEncoder
     from ai.mcts import MCTS
     from ai.device import get_best_device
     from ai.mulligan_policy import MulliganPolicy, MulliganEncoder
@@ -36,6 +37,7 @@ except ImportError as e:
     print(f"[WARNING] AI modules not available: {e}")
     AI_AVAILABLE = False
     MulliganPolicy = None  # type: ignore
+    CardTransformer = None  # type: ignore
 
 # WebSocket imports
 try:
