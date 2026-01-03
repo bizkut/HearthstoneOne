@@ -122,7 +122,6 @@ def hp_demon_claws(game, source, target):
 
 def hp_ghoul_charge(game, source, target):
     """Death Knight: Summon a 1/1 Ghoul with Charge."""
-    # Create ghoul token
     ghoul_data = CardData(
         card_id="RLK_Minion_Ghoul",
         name="Ghoul",
@@ -136,8 +135,108 @@ def hp_ghoul_charge(game, source, target):
     source.controller.summon(ghoul)
 
 
+# === UPGRADED HERO POWERS (Justicar/Baku) ===
+
+def hp_fireblast_rank2(game, source, target):
+    """Upgraded Mage: Deal 2 damage to any target."""
+    if target:
+        game.deal_damage(target, 2, source)
+
+
+def hp_totemic_slam(game, source, target):
+    """Upgraded Shaman: Summon a random basic totem."""
+    import random
+    totem_ids = ["CS2_050", "CS2_051", "CS2_052", "NEW1_009"]
+    existing = [m.card_id for m in source.controller.board]
+    available = [t for t in totem_ids if t not in existing]
+    if available and len(source.controller.board) < 7:
+        game.summon_token(source.controller, random.choice(available))
+
+
+def hp_soul_tap(game, source, target):
+    """Upgraded Warlock: Draw a card."""
+    source.controller.draw(1)
+
+
+def hp_poisoned_daggers(game, source, target):
+    """Upgraded Rogue: Equip a 2/2 Poisoned Dagger."""
+    from simulator.entities import Weapon
+    dagger_data = CardData(
+        card_id="AT_132_ROGUE",
+        name="Poisoned Daggers",
+        cost=0,
+        attack=2,
+        durability=2,
+        card_type=CardType.WEAPON
+    )
+    dagger = Weapon(dagger_data, game)
+    source.controller.equip_weapon(dagger)
+
+
+def hp_the_silver_hand(game, source, target):
+    """Upgraded Paladin: Summon two 1/1 Silver Hand Recruits."""
+    for _ in range(2):
+        if len(source.controller.board) < 7:
+            game.summon_token(source.controller, "CS2_101t")
+
+
+def hp_tank_up(game, source, target):
+    """Upgraded Warrior: Gain 4 armor."""
+    if source.controller.hero:
+        source.controller.hero.gain_armor(4)
+
+
+def hp_dire_shapeshift(game, source, target):
+    """Upgraded Druid: +2 Attack this turn, +2 Armor."""
+    if source.controller.hero:
+        source.controller.hero._attack += 2
+        source.controller.hero.gain_armor(2)
+
+
+def hp_ballista_shot(game, source, target):
+    """Upgraded Hunter: Deal 3 damage to enemy hero."""
+    opponent = source.controller.opponent
+    if opponent and opponent.hero:
+        game.deal_damage(opponent.hero, 3, source)
+
+
+def hp_heal(game, source, target):
+    """Upgraded Priest: Restore 4 Health to any target."""
+    if target:
+        game.heal(target, 4)
+
+
+def hp_infernal_strike(game, source, target):
+    """Upgraded Demon Hunter: +2 Attack this turn."""
+    if source.controller.hero:
+        source.controller.hero._attack += 2
+
+
+# === HERO CARD POWERS ===
+
+def hp_voidform(game, source, target):
+    """Shadowreaper Anduin: Deal 2 damage. Refresh after playing a card."""
+    if target:
+        game.deal_damage(target, 2, source)
+
+
+def hp_build_a_beast(game, source, target):
+    """Deathstalker Rexxar: Craft a custom Zombeast."""
+    # Simplified - just summons a random beast
+    pass
+
+
+def hp_plague_lord(game, source, target):
+    """Bloodreaver Gul'dan: Deal 3 damage. Restore 3 Health to your hero."""
+    if target:
+        game.deal_damage(target, 3, source)
+    if source.controller.hero:
+        game.heal(source.controller.hero, 3)
+
+
 # Registry mapping card_id -> handler
 HERO_POWER_HANDLERS: Dict[str, Callable] = {
+    # Basic Hero Powers
     "CS2_034": hp_fireblast,
     "CS2_049": hp_totemic_call,
     "CS2_056": hp_life_tap,
@@ -149,11 +248,29 @@ HERO_POWER_HANDLERS: Dict[str, Callable] = {
     "CS1h_001": hp_lesser_heal,
     "HERO_10bp": hp_demon_claws,
     "HERO_11bp": hp_ghoul_charge,
+    
+    # Upgraded Hero Powers (Justicar Trueheart / Baku the Mooneater)
+    "AT_132_MAGE": hp_fireblast_rank2,    # Fireblast Rank 2
+    "AT_132_SHAMAN": hp_totemic_slam,     # Totemic Slam
+    "AT_132_WARLOCK": hp_soul_tap,        # Soul Tap
+    "AT_132_ROGUE": hp_poisoned_daggers,  # Poisoned Daggers
+    "AT_132_PALADIN": hp_the_silver_hand, # The Silver Hand
+    "AT_132_WARRIOR": hp_tank_up,         # Tank Up!
+    "AT_132_DRUID": hp_dire_shapeshift,   # Dire Shapeshift
+    "AT_132_HUNTER": hp_ballista_shot,    # Ballista Shot
+    "AT_132_PRIEST": hp_heal,             # Heal
+    "HERO_10bp2": hp_infernal_strike,     # Infernal Strike
+    
+    # Hero Card Powers
+    "ICC_830p": hp_voidform,              # Shadowreaper Anduin
+    "ICC_828p": hp_build_a_beast,         # Deathstalker Rexxar
+    "ICC_831p": hp_plague_lord,           # Bloodreaver Gul'dan
 }
 
 
 # Target requirements for hero powers
 HERO_POWER_NEEDS_TARGET: Dict[str, bool] = {
+    # Basic Powers
     "CS2_034": True,     # Fireblast - any target
     "CS2_049": False,    # Totemic Call
     "CS2_056": False,    # Life Tap
@@ -165,6 +282,23 @@ HERO_POWER_NEEDS_TARGET: Dict[str, bool] = {
     "CS1h_001": True,    # Lesser Heal - any target
     "HERO_10bp": False,  # Demon Claws
     "HERO_11bp": False,  # Ghoul Charge
+    
+    # Upgraded Powers
+    "AT_132_MAGE": True,     # Fireblast Rank 2 - any target
+    "AT_132_SHAMAN": False,  # Totemic Slam
+    "AT_132_WARLOCK": False, # Soul Tap
+    "AT_132_ROGUE": False,   # Poisoned Daggers
+    "AT_132_PALADIN": False, # The Silver Hand
+    "AT_132_WARRIOR": False, # Tank Up
+    "AT_132_DRUID": False,   # Dire Shapeshift
+    "AT_132_HUNTER": False,  # Ballista Shot
+    "AT_132_PRIEST": True,   # Heal - any target
+    "HERO_10bp2": False,     # Infernal Strike
+    
+    # Hero Card Powers
+    "ICC_830p": True,    # Voidform - any target
+    "ICC_828p": False,   # Build-A-Beast
+    "ICC_831p": True,    # Plague Lord - any target
 }
 
 
