@@ -17,6 +17,20 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class Enchantment:
+    """A buff or debuff applied to a card."""
+    enchantment_id: str
+    source_id: int  # Entity ID of source
+    attack_bonus: int = 0
+    health_bonus: int = 0
+    cost_modifier: int = 0
+    keywords_added: List[str] = field(default_factory=list)
+    one_turn_effect: bool = False  # If True, removed at end of turn
+    
+    # Store arbitrary data for complex effects (e.g. deathrattles given)
+    extra_data: Dict[str, Any] = field(default_factory=dict)
+
+@dataclass
 class CardData:
     """Static card data loaded from CardDefs."""
     card_id: str
@@ -117,6 +131,10 @@ class Card(Entity):
         self._durability: int = data.durability
         self._damage: int = 0
         
+        # Enchantments
+        self.enchantments: List[Enchantment] = []
+
+        
         # State flags
         self.exhausted: bool = False
         self.attacks_this_turn: int = 0
@@ -136,7 +154,79 @@ class Card(Entity):
         self._lifesteal: bool = data.lifesteal
         self._rush: bool = data.rush
         self._reborn: bool = data.reborn
+        self._echo: bool = getattr(data, 'echo', False)
     
+    @property
+    def cost(self) -> int:
+        """Calculate current cost with enchantments."""
+        val = self._cost
+        for enc in self.enchantments:
+            val += enc.cost_modifier
+        return max(0, val)
+
+    @property
+    def attack(self) -> int:
+        """Calculate current attack with enchantments."""
+        val = self._attack
+        for enc in self.enchantments:
+            val += enc.attack_bonus
+        return max(0, val)
+        
+    @property
+    def health(self) -> int:
+        """Calculate current health (max health) with enchantments."""
+        val = self._max_health
+        for enc in self.enchantments:
+            val += enc.health_bonus
+        return max(1, val)
+        
+    @property
+    def current_health(self) -> int:
+        """Current health account for damage."""
+        return self.health - self._damage
+
+    def add_enchantment(self, enchantment: Enchantment):
+        """Add a buff/debuff."""
+        self.enchantments.append(enchantment)
+        
+    def remove_enchantment(self, enchantment_id: str):
+        """Remove an enchantment by ID."""
+        self.enchantments = [e for e in self.enchantments if e.enchantment_id != enchantment_id]
+
+    def has_keyword(self, keyword_attr: str) -> bool:
+        """Check if card has keyword (native or enchanted)."""
+        # 1. Native
+        if getattr(self, f"_{keyword_attr}", False):
+            return True
+        # 2. Enchantments
+        keyword_upper = keyword_attr.upper()
+        for enc in self.enchantments:
+            if keyword_upper in enc.keywords_added:
+                return True
+        return False
+
+    # Keyword getters using common helper
+    @property
+    def taunt(self) -> bool: return self.has_keyword('taunt')
+    @property
+    def divine_shield(self) -> bool: return self.has_keyword('divine_shield')
+    @property
+    def charge(self) -> bool: return self.has_keyword('charge')
+    @property
+    def windfury(self) -> bool: return self.has_keyword('windfury')
+    @property
+    def stealth(self) -> bool: return self.has_keyword('stealth')
+    @property
+    def poisonous(self) -> bool: return self.has_keyword('poisonous')
+    @property
+    def lifesteal(self) -> bool: return self.has_keyword('lifesteal')
+    @property
+    def rush(self) -> bool: return self.has_keyword('rush')
+    @property
+    def reborn(self) -> bool: return self.has_keyword('reborn')
+    @property
+    def echo(self) -> bool: return self.has_keyword('echo')
+
     def clone(self) -> 'Card':
         """Create a deep copy of the card."""
         # Create new instance of same class (Minion, Spell, etc.)
@@ -148,6 +238,11 @@ class Card(Entity):
         new_card._health = self._health
         new_card._max_health = self._max_health
         new_card._armor = self._armor
+        
+        # Copy enchantments manually since they are dataclasses
+        import copy
+        new_card.enchantments = copy.deepcopy(self.enchantments)
+
         new_card._durability = self._durability
         new_card._damage = self._damage
         

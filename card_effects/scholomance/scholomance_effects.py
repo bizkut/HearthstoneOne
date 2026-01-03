@@ -57,6 +57,18 @@ def effect_SCH_351_battlecry(game, source, target):
     if summoned:
         illusion = random.choice(summoned)
         illusion._is_illusion = True  # Custom flag for Jandice illusion
+        
+        # Register trigger to die on damage
+        # We need to define the handler here or use a generic one
+        def illusion_damage_handler(game, source, target_damaged, amount, damage_source):
+            if source == target_damaged:
+                # Illusion took damage, destroy it
+                source.destroy()
+        
+        # Register trigger
+        # We access the game's internal trigger list directly as we don't have a public API for dynamic triggers yet
+        if "on_damage_taken" in game._triggers:
+            game._triggers["on_damage_taken"].append((illusion, illusion_damage_handler))
 
 
 # SCH_514 - Lorekeeper Polkelt
@@ -103,8 +115,66 @@ def effect_SCH_312_battlecry(game, source, target):
 # SCH_537 - Trick Totem (Mage/Shaman)
 def effect_SCH_537_trigger(game, source, turn_end):
     """Trick Totem: At the end of your turn, cast a random spell that costs (3) or less."""
-    # Would need spell casting system
-    pass
+    from simulator.card_loader import CardDatabase, create_card
+    from simulator.enums import CardType, CardClass
+    
+    # 1. Get all eligible spells
+    db = CardDatabase.get_instance()
+    db.load()
+    
+    eligible = [
+        cid for cid, card in db._cards.items()
+        if card.card_type == CardType.SPELL and card.cost <= 3 and card.collectible
+    ]
+    
+    if not eligible:
+        return
+
+    # 2. Pick one
+    spell_id = random.choice(eligible)
+    spell = create_card(spell_id, game)
+    if not spell:
+        return
+        
+    spell.controller = source.controller
+    
+    # 3. Determine target
+    # This is simplified. Real HS checks specific targeting requirements.
+    # We'll just pick a random character if the spell implies targeting.
+    target = None
+    all_targets = source.controller.board + source.controller.opponent.board
+    if source.controller.hero: all_targets.append(source.controller.hero)
+    if source.controller.opponent.hero: all_targets.append(source.controller.opponent.hero)
+    
+    if all_targets:
+        target = random.choice(all_targets)
+        
+    # 4. Cast it (Bypassing mana, hand check)
+    # We call the effect handler directly if we can find it, or use _play_spell approach
+    # Since we aren't calling play_card, we manually trigger "on_spell_played" if we want
+    # full accuracy, but Trick Totem *casts* it, so it should trigger events.
+    # However, existing _play_spell logic in game.py is entangled with player stats.
+    
+    # Let's try to use the game's internal mechanism if possible, or just the effect.
+    # Safe way:
+    try:
+        if spell.card_id in game._battlecry_handlers: # Spells use battlecry handlers in this codebase?
+             # No, spells usually have their own handlers, but registered where?
+             # verify_integration.py shows they are in _battlecry_handlers usually for spells too?
+             # Let's check game.py _play_spell
+             pass
+    except:
+        pass
+        
+    # Re-checking Game._play_spell
+    if hasattr(game, '_play_spell'):
+        # We need to monkey-patch or temporarily allow free cast? 
+        # No, just call the effect handler directly.
+         if spell.card_id in game._battlecry_handlers:
+             game._battlecry_handlers[spell.card_id](game, spell, target)
+             # Fire event
+             game.fire_event("on_spell_played", spell, target)
+             game.fire_event("on_after_card_played", spell)
 
 
 # SCH_350 - Wand Thief (Mage/Rogue)

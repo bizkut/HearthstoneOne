@@ -235,26 +235,52 @@ class Game:
 
     def fire_event(self, event_name: str, *args, **kwargs) -> None:
         """Execute all callbacks for an event."""
-        if event_name not in self._triggers:
+        
+        # 1. Triggers (Observers)
+        if event_name in self._triggers:
+            # Filter out triggers whose source is no longer in play
+            # (unless it's a graveyard trigger or on_death)
+            valid_triggers = []
+            for source, callback in self._triggers[event_name]:
+                if source.zone == Zone.PLAY or source.zone == Zone.HAND or isinstance(source, Hero):
+                    valid_triggers.append((source, callback))
+                elif event_name == "on_minion_death": # Keep on_minion_death triggers valid even if source dying
+                     valid_triggers.append((source, callback))
+
+            # Update triggers list (remove dead triggers)
+            self._triggers[event_name] = valid_triggers
+            
+            # Execute callbacks
+            for source, callback in valid_triggers:
+                try:
+                    callback(self, source, *args, **kwargs)
+                except Exception as e:
+                    print(f"CRITICAL ERROR executing trigger '{event_name}' for {source.name} ({source.card_id}): {e}")
+                    # Don't crash game for one effect failure
+                    pass
+
+        # 2. Deck Triggers (e.g. Patches)
+        self.check_deck_triggers(event_name, *args, **kwargs)
+
+    def check_deck_triggers(self, event_name: str, *args, **kwargs) -> None:
+        """Check for triggers from cards in decks (e.g. Patches)."""
+        if event_name not in ["on_after_card_played"]:
             return
             
-        # Filter out triggers whose source is no longer in play
-        # (unless it's a graveyard trigger, but we'll simplify for now)
-        valid_triggers = []
-        for source, callback in self._triggers[event_name]:
-            if source.zone == Zone.PLAY or source.zone == Zone.HAND or isinstance(source, Hero):
-                valid_triggers.append((source, callback))
+        DECK_TRIGGER_CARDS = {
+            "CFM_637": "on_after_card_played", # Patches
+        }
         
-        # Update triggers list (remove dead triggers)
-        self._triggers[event_name] = valid_triggers
-        
-        # Execute callbacks
-        for source, callback in valid_triggers:
-            try:
-                callback(self, source, *args, **kwargs)
-            except Exception as e:
-                print(f"CRITICAL ERROR executing trigger '{event_name}' for {source.name} ({source.card_id}): {e}")
-                raise e
+        for player in self.players:
+            # Quick check if player has any potential deck triggers
+            for card in player.deck:
+                if card.card_id in DECK_TRIGGER_CARDS:
+                    expected_event = DECK_TRIGGER_CARDS[card.card_id]
+                    if event_name == expected_event:
+                        # Look up handler in _trigger_handlers
+                        if card.card_id in self._trigger_handlers:
+                             for handler in self._trigger_handlers[card.card_id]:
+                                 handler(self, card, *args, **kwargs)
 
     @property
     def current_player(self) -> Player:
@@ -363,6 +389,31 @@ class Game:
         self.fire_event("on_turn_end", self.current_player)
         self.current_player.end_turn()
         
+        # Process end of turn buffs
+        self.process_turn_end_buffs()
+        
+    def process_turn_end_buffs(self) -> None:
+        """Remove temporary buffs at end of turn."""
+        all_entities = []
+        # Check all minions on board, heroes, and cards in hand for both players
+        for player in self.players:
+            all_entities.extend(player.board)
+            all_entities.extend(player.hand)
+            if player.hero:
+                all_entities.append(player.hero)
+            if player.hero_power:
+                all_entities.append(player.hero_power)
+            if player.weapon:
+                all_entities.append(player.weapon)
+                
+        for entity in all_entities:
+            if hasattr(entity, 'enchantments'):
+                # Filter out expired enchantments
+                entity.enchantments = [
+                    e for e in entity.enchantments 
+                    if not e.one_turn_effect
+                ]
+        
         # Process any pending deaths
         self.process_deaths()
         
@@ -442,20 +493,25 @@ class Game:
             except ImportError:
                 pass
         
+        success = False
+        
         if card.card_type == CardType.MINION:
-            return self._play_minion(card, target, position)
+            success = self._play_minion(card, target, position)
         elif card.card_type == CardType.SPELL:
             player.spells_played_this_game.append(card.card_id)
             player.spells_played_this_turn += 1
-            return self._play_spell(card, target)
+            success = self._play_spell(card, target)
         elif card.card_type == CardType.WEAPON:
-            return self._play_weapon(card)
+            success = self._play_weapon(card)
         elif card.card_type == CardType.HERO:
-            return self._play_hero(card)
+            success = self._play_hero(card)
         elif card.card_type == CardType.LOCATION:
-            return self._play_location(card, position)
+            success = self._play_location(card, position)
+            
+        if success:
+            self.fire_event("on_after_card_played", card)
         
-        return False
+        return success
 
     def _play_minion(
         self, 

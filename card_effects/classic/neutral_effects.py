@@ -10,15 +10,18 @@ def effect_CS2_141_battlecry(game, source, target):
 
 # CS2_188 - Abusive Sergeant
 def effect_CS2_188_battlecry(game, source, target):
-    """Abusive Sergeant: Battlecry: Give a minion +2 Attack this turn.
-    
-    Note: This implementation gives permanent +2 Attack because the game engine
-    doesn't have a buff system with turn-end expiration. For full accuracy,
-    a buff tracking system would need to be implemented.
-    """
-    if target and hasattr(target, '_attack'):
-        target._attack += 2
-        # TODO: Register a turn-end trigger to remove this buff
+    """Abusive Sergeant: Battlecry: Give a minion +2 Attack this turn."""
+    if target and hasattr(target, 'add_enchantment'):
+        from simulator.entities import Enchantment
+        import uuid
+        
+        buff = Enchantment(
+            enchantment_id=f"abusive_sergeant_buff_{uuid.uuid4().hex[:8]}",
+            source_id=source.entity_id,
+            attack_bonus=2,
+            one_turn_effect=True
+        )
+        target.add_enchantment(buff)
 
 
 # CS2_189 - Elven Archer
@@ -40,7 +43,7 @@ def effect_EX1_019_battlecry(game, source, target):
     if target and target.controller == source.controller:
         target._attack += 1
         target._health += 1
-        target.max_health += 1
+        target._max_health += 1
 
 
 # EX1_029 - Leper Gnome

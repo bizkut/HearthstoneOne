@@ -56,7 +56,35 @@ class Trainer:
         
         # Tracking
         self.best_win_rate = 0.0
+        self.start_iteration = 0
         self.training_history = []
+        
+        # Resume if requested
+        if self.config.get('resume_checkpoint'):
+            self.load_checkpoint(self.config['resume_checkpoint'])
+        
+    def load_checkpoint(self, path: str):
+        """Load validation checkpoint to resume training."""
+        if not os.path.exists(path):
+            print(f"Checkpoint not found: {path}")
+            return
+            
+        print(f"Loading checkpoint from {path}...")
+        checkpoint = torch.load(path, map_location=self.device)
+        
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        self.best_win_rate = checkpoint.get('best_win_rate', 0.0)
+        
+        # Try to infer start iteration from filename (checkpoint_iter_X.pt)
+        try:
+            filename = os.path.basename(path)
+            if 'iter_' in filename:
+                iter_num = int(filename.split('_iter_')[1].split('.')[0])
+                self.start_iteration = iter_num
+                print(f"Resuming from iteration {self.start_iteration}")
+        except:
+            pass
         
     def train(self):
         """Main training loop."""
@@ -66,10 +94,12 @@ class Trainer:
         
         start_time = time.time()
         
-        for iteration in range(self.num_iterations):
+        # Adjust range for resume
+        for iteration in range(self.start_iteration, self.start_iteration + self.num_iterations):
+# ... (rest of loop same as before)
             iter_start = time.time()
             print(f"\n{'='*50}")
-            print(f"Iteration {iteration + 1}/{self.num_iterations}")
+            print(f"Iteration {iteration + 1}/{self.start_iteration + self.num_iterations}")
             print(f"{'='*50}")
             
             # 1. Self-Play Data Collection
@@ -205,6 +235,7 @@ def parse_args():
     parser.add_argument('--batch-size', type=int, default=64, help='Training batch size')
     parser.add_argument('--learning-rate', type=float, default=1e-3, help='Learning rate')
     parser.add_argument('--buffer-capacity', type=int, default=10000, help='Replay buffer capacity')
+    parser.add_argument('--resume-checkpoint', type=str, help='Path to checkpoint to resume from')
     return parser.parse_args()
 
 
@@ -218,6 +249,7 @@ if __name__ == "__main__":
         'batch_size': args.batch_size,
         'learning_rate': args.learning_rate,
         'buffer_capacity': args.buffer_capacity,
+        'resume_checkpoint': args.resume_checkpoint,
     }
     
     trainer = Trainer(config)

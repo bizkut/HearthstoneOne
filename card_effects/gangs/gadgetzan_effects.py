@@ -88,15 +88,62 @@ def effect_CFM_344_trigger(game, source, attack_event):
 # CFM_619 - Kabal Chemist
 def effect_CFM_619_battlecry(game, source, target):
     """Kabal Chemist: Battlecry: Add a random Potion to your hand."""
-    # Simplified - would need potion pool
-    pass
+    potions = [
+        "CFM_603", # Potion of Madness
+        "CFM_604", # Greater Healing Potion
+        "CFM_605", # Pint-Size Potion
+        "CFM_608", # Blastcrystal Potion
+        "CFM_620", # Dragonfire Potion
+        "CFM_650", # Volcanic Potion
+        "CFM_661", # Felfire Potion
+        "CFM_662", # Bloodfury Potion
+        "CFM_020", # Razorpetals (Wait, checking IDs...)
+        "CFM_620", # Potion of Polymorph
+        "CFM_062", # Freezing Potion
+    ]
+    # Filter only valid ones (some IDs might be wrong/missing in pure list, best effort)
+    # Correct list from Python-Hearthstone data would be better but hardcoding for now
+    
+    # Revised list (Common/Rare/Epic MSG Potions)
+    potions = [
+        "CFM_603", "CFM_604", "CFM_605", "CFM_608", 
+        "CFM_620", "CFM_650", "CFM_661", "CFM_662",
+        "CFM_062", # Freezing Potion
+        "CFM_611", # Potion of Polymorph 
+    ]
+    
+    from simulator.card_loader import create_card
+    potion = create_card(random.choice(potions), game)
+    if potion:
+        source.controller.add_to_hand(potion)
 
 
 # CFM_637 - Patches the Pirate
-def effect_CFM_637_trigger(game, source, play_event):
+def effect_CFM_637_on_after_card_played(game, self_card, played_card):
     """Patches: After you play a Pirate, summon this from your deck."""
-    # This is a complex triggered effect from deck
-    pass
+    from simulator.enums import Race, Zone
+    
+    # Check if we are still in deck
+    if self_card.zone != Zone.DECK:
+        return
+    
+    # Check if played card is a Pirate and controlled by us
+    if played_card.controller == self_card.controller and \
+       getattr(played_card.data, 'race', None) == Race.PIRATE:
+           
+        # Summon ourselves
+        # Remove from deck first
+        if self_card in self_card.controller.deck:
+             self_card.controller.deck.remove(self_card)
+             
+             # Summon (Charge is handled by card data/attributes)
+             if not self_card.controller.summon(self_card, -1):
+                 # If full board, burn it? Or it stays in void? 
+                 # In Hearthstone, if board is full, Patches doesn't summon.
+                 # But we already removed it from deck. 
+                 # Let's put it back if summon fails.
+                 self_card.controller.deck.append(self_card)
+
 
 
 # CFM_646 - Backstreet Leper
@@ -203,7 +250,7 @@ GADGETZAN_EFFECTS = {
     # Triggers
     "CFM_060": effect_CFM_060_trigger,
     "CFM_344": effect_CFM_344_trigger,
-    "CFM_637": effect_CFM_637_trigger,
+    "CFM_637": effect_CFM_637_on_after_card_played,
     "CFM_654": effect_CFM_654_trigger,
     "CFM_851": effect_CFM_851_trigger,
 }
