@@ -2,4 +2,5 @@
 
 import random
 def on_play(game, source, target):
-    target.attack += 3
+    if target:
+        target.attack += 3

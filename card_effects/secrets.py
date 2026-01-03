@@ -140,7 +140,8 @@ def secret_EX1_130(game, source, event_data):
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "EX1_130a")
         # Redirect attack to the Defender
-        event_data['new_target'] = source.controller.board[-1]
+        if event_data and isinstance(event_data, dict):
+            event_data['new_target'] = source.controller.board[-1]
     return True
 
 

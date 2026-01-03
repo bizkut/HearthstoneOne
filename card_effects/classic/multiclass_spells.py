@@ -559,7 +559,8 @@ def effect_CS2_012_battlecry(game, source, target):
 # CS2_013 - Wild Growth
 def effect_CS2_013_battlecry(game, source, target):
     """Wild Growth: Gain an empty Mana Crystal."""
-    source.controller.max_mana = min(10, source.controller.max_mana + 1)
+    if hasattr(source.controller, 'max_mana'):
+        source.controller.max_mana = min(10, source.controller.max_mana + 1)
 
 
 # EX1_154 - Wrath

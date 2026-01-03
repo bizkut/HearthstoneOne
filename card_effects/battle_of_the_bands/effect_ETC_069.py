@@ -2,5 +2,8 @@
 
 def on_play(game, source, target):
     player = source.controller
-    player.fatigue += 1
-    game.deal_damage(player.hero, player.fatigue, source)
+    fatigue = getattr(player, 'fatigue', 0) + 1
+    if hasattr(player, 'fatigue'):
+        player.fatigue = fatigue
+    if player.hero:
+        game.deal_damage(player.hero, fatigue, source)
