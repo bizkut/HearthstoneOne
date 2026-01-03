@@ -125,6 +125,39 @@ python3 scripts/generate_self_play.py --num-games 10000 --output data/self_play_
 python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 100 --batch-size 128 --lr 5e-5
 ```
 
+### 🚀 CUDA Server Training (Recommended)
+
+For best results, train on a CUDA GPU server:
+
+```bash
+# One-liner for CUDA training
+./scripts/train_cuda.sh
+
+# Or with custom settings
+NUM_GAMES=20000 BATCH_SIZE=512 MODEL_SIZE=xlarge ./scripts/train_cuda.sh
+```
+
+#### Model Sizes
+| Flag | Hidden | Layers | Params | VRAM | Best For |
+|------|--------|--------|--------|------|----------|
+| (default) | 128 | 4 | ~1M | 4GB | Testing |
+| `--large` | 256 | 6 | ~5.5M | 8GB | Good quality |
+| `--xlarge` | 512 | 8 | ~12M | 16GB+ | Best quality |
+
+#### CUDA Training Command
+```bash
+# Generate 20k games (~10 min)
+python3 scripts/generate_self_play.py --num-games 20000 --output data/self_play_data.json
+
+# Train XL model (~2 hours on RTX 3090)
+python3 training/imitation_trainer.py \
+    --data data/self_play_data.json \
+    --epochs 200 \
+    --batch-size 512 \
+    --lr 5e-4 \
+    --xlarge
+```
+
 ### Legacy MLP Training
 ```bash
 python training/trainer.py --epochs 100 --output models/

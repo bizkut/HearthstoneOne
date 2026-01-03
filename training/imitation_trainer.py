@@ -206,9 +206,13 @@ class ImitationTrainer:
             val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
         
         best_val_loss = float('inf')
+        best_val_acc = 0.0
+        patience_counter = 0
+        patience = 10  # Early stopping patience
         
         print(f"Training on {len(train_data)} samples for {num_epochs} epochs")
         print(f"Device: {self.device}")
+        print(f"Model params: {sum(p.numel() for p in self.model.parameters()):,}")
         print("=" * 50)
         
         for epoch in range(num_epochs):
@@ -229,11 +233,18 @@ class ImitationTrainer:
             if val_loader:
                 print(f"  Val Loss: {val_loss:.4f}, Accuracy: {val_acc:.2%}")
             
-            # Save best model
-            if val_loss < best_val_loss:
+            # Save best model (by validation accuracy now)
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
                 best_val_loss = val_loss
                 self.save(save_path)
-                print(f"  -> Saved best model")
+                print(f"  -> Saved best model (acc: {val_acc:.2%})")
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                if patience_counter >= patience:
+                    print(f"\nEarly stopping at epoch {epoch + 1} (no improvement for {patience} epochs)")
+                    break
             
             self.train_history.append({
                 'epoch': epoch + 1,
@@ -243,7 +254,7 @@ class ImitationTrainer:
             })
         
         print("\n" + "=" * 50)
-        print(f"Training complete. Best val loss: {best_val_loss:.4f}")
+        print(f"Training complete. Best accuracy: {best_val_acc:.2%}")
     
     def save(self, path: str):
         """Save model checkpoint."""
@@ -290,6 +301,8 @@ if __name__ == "__main__":
     parser.add_argument('--output', type=str, default='models/transformer_model.pt',
                         help='Output model path')
     parser.add_argument('--dummy', action='store_true', help='Use dummy data for testing')
+    parser.add_argument('--large', action='store_true', help='Use larger model (256 hidden, 6 layers)')
+    parser.add_argument('--xlarge', action='store_true', help='Use XL model for CUDA (512 hidden, 8 layers, 12M params)')
     
     args = parser.parse_args()
     
@@ -316,7 +329,15 @@ if __name__ == "__main__":
         print("No data provided. Use --data or --dummy")
         exit(1)
     
-    # Train
-    model = CardTransformer()
+    # Create model
+    if args.xlarge:
+        print("Using XLARGE model config (512 hidden, 8 layers, 12 heads) - Best for CUDA")
+        model = CardTransformer(hidden_dim=512, num_layers=8, num_heads=12, dropout=0.15)
+    elif args.large:
+        print("Using LARGE model config (256 hidden, 6 layers, 0.2 dropout)")
+        model = CardTransformer(hidden_dim=256, num_layers=6, num_heads=8, dropout=0.2)
+    else:
+        model = CardTransformer()
+    
     trainer = ImitationTrainer(model, learning_rate=args.lr, batch_size=args.batch_size)
     trainer.train(train_data, val_data, num_epochs=args.epochs, save_path=args.output)
