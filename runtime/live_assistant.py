@@ -8,7 +8,6 @@ or falls back to heuristic-based suggestions if no model is available.
 import sys
 import os
 import time
-import threading
 from typing import Optional
 
 from PyQt6.QtWidgets import QApplication
@@ -101,8 +100,14 @@ class AssistantWorker(QThread):
             try:
                 print(f"[AI] Loading model: {model_path}")
                 self.model = HearthstoneModel(input_dim=690, action_dim=200)
-                checkpoint = torch.load(model_path, map_location='cpu')
-                self.model.load_state_dict(checkpoint['model_state_dict'])
+                checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
+                
+                # Handle both old (direct state_dict) and new (wrapped) formats
+                if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+                    self.model.load_state_dict(checkpoint['model_state_dict'])
+                else:
+                    self.model.load_state_dict(checkpoint)
+                    
                 self.model.eval()
                 self.encoder = FeatureEncoder()
                 self.use_ai = True

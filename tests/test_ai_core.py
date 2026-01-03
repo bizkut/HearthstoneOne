@@ -48,25 +48,30 @@ class TestAICore(unittest.TestCase):
     def test_game_cloning(self):
         """Verify that Game.clone() creates a deep copy properly."""
         print("\nTesting Game Cloning...")
-        # Check hand match before clone
-        print(f"Original Hand Size Pre-Clone: {len(self.game.players[0].hand)}")
+        
+        # Find p1 in players (order may be randomized by setup)
+        p1 = next(p for p in self.game.players if p.name == "P1")
+        p1_idx = self.game.players.index(p1)
+        
+        print(f"Original Hand Size Pre-Clone: {len(p1.hand)}")
         
         clone = self.game.clone()
         
         # Modify original
-        self.game.players[0].mana = 99
-        print(f"Original Hand Size Post-Clone: {len(self.game.players[0].hand)}")
-        self.assertTrue(len(self.game.players[0].hand) > 0, "Player hand is empty")
-        self.game.players[0].hand[0].cost = 0
+        p1.mana = 99
+        print(f"Original Hand Size Post-Clone: {len(p1.hand)}")
+        self.assertTrue(len(p1.hand) > 0, "Player hand is empty")
+        p1.hand[0].cost = 0
         
         # Check clone is untouched
-        self.assertEqual(clone.players[0].mana, 0, "Clone mana should not change")
-        self.assertNotEqual(clone.players[0].hand[0].cost, 0, "Clone card cost should not change")
+        cloned_p1 = clone.players[p1_idx]
+        self.assertEqual(cloned_p1.mana, 0, "Clone mana should not change")
+        self.assertNotEqual(cloned_p1.hand[0].cost, 0, "Clone card cost should not change")
         
         # Verify entities are different objects
-        self.assertIsNot(self.game.players[0], clone.players[0])
-        self.assertIsNot(self.game.players[0].hand[0], clone.players[0].hand[0])
-        self.assertIsNot(self.game.players[0].board[0], clone.players[0].board[0])
+        self.assertIsNot(p1, cloned_p1)
+        self.assertIsNot(p1.hand[0], cloned_p1.hand[0])
+        self.assertIsNot(p1.board[0], cloned_p1.board[0])
         
         # Verify triggers are preserved (by count at least)
         # Note: Triggers are minimal in vanilla game without effects

@@ -159,16 +159,19 @@ class Trainer:
         return avg_loss
     
     def _evaluate(self):
-        """Evaluate model by playing against random opponent."""
-        # Simplified evaluation: win rate from recent self-play games
-        # In a full implementation, this would pit the model against a baseline
+        """
+        Evaluate model by playing against random opponent.
         
-        # For now, use the win rate from the replay buffer's recent games
+        NOTE: This is a PLACEHOLDER implementation that returns simulated
+        win rates. A real implementation should:
+        1. Play evaluation games against a fixed baseline (e.g., random agent)
+        2. Track actual wins/losses
+        3. Return real win rate
+        """
+        # Placeholder: return 50% + small improvement per iteration
         if not self.training_history:
             return 0.5  # Baseline
         
-        # Placeholder: return 50% + small improvement per iteration
-        # Real implementation would play evaluation games
         iteration = len(self.training_history) + 1
         simulated_improvement = min(0.3, iteration * 0.02)
         return 0.5 + simulated_improvement

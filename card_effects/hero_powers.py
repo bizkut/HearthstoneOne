@@ -94,6 +94,8 @@ def hp_armor_up(game, source, target):
 def hp_shapeshift(game, source, target):
     """Druid: +1 Attack this turn, +1 Armor."""
     if source.controller.hero:
+        # Note: Hero attack resets each turn in game engine (via attacks_this_turn reset)
+        # The +1 attack is temporary for this turn only
         source.controller.hero._attack += 1
         source.controller.hero.gain_armor(1)
 
@@ -114,6 +116,7 @@ def hp_lesser_heal(game, source, target):
 def hp_demon_claws(game, source, target):
     """Demon Hunter: +1 Attack this turn."""
     if source.controller.hero:
+        # Note: Hero attack resets each turn in game engine
         source.controller.hero._attack += 1
 
 
