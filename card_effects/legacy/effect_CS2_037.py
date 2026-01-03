@@ -1,5 +1,7 @@
-"""Effect for CS2_037"""
+"""Effect for CS2_037 (Frost Shock)"""
 
-import random
 def on_play(game, source, target):
-    target.attack += 3
+    if target:
+        game.deal_damage(target, 1)
+        if hasattr(target, 'frozen'):
+            target.frozen = True
