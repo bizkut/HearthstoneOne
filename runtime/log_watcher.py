@@ -1,19 +1,43 @@
 import os
+import sys
 import time
+import platform
 from typing import Callable, Optional
+
+
+def get_platform_log_roots():
+    """Get Hearthstone log paths for the current platform."""
+    system = platform.system()
+    
+    if system == "Darwin":  # macOS
+        return [
+            os.path.expanduser("~/Library/Logs/Hearthstone"),
+            "/Applications/Hearthstone/Logs",
+            os.path.expanduser("~/Applications/Hearthstone/Logs"),
+        ]
+    elif system == "Linux":
+        # Wine/Proton paths
+        return [
+            os.path.expanduser("~/.wine/drive_c/Program Files (x86)/Hearthstone/Logs"),
+            os.path.expanduser("~/.steam/steam/steamapps/compatdata/*/pfx/drive_c/Program Files (x86)/Hearthstone/Logs"),
+        ]
+    else:  # Windows
+        return [
+            r"E:\JEU\Hearthstone\Logs",
+            r"C:\Program Files (x86)\Hearthstone\Logs",
+            r"D:\Jeux\Hearthstone\Logs",
+            os.path.expandvars(r"%LocalAppData%\Blizzard\Hearthstone\Logs"),
+        ]
+
 
 class LogWatcher:
     """
     Watches the Hearthstone Power.log for changes and triggers a callback for new lines.
     Handles the dynamic location of logs in recent Hearthstone versions.
+    Supports Windows, macOS, and Linux (Wine/Proton).
     """
     
-    POSSIBLE_ROOTS = [
-        r"E:\JEU\Hearthstone\Logs",
-        r"C:\Program Files (x86)\Hearthstone\Logs",
-        r"D:\Jeux\Hearthstone\Logs",
-        os.path.expandvars(r"%LocalAppData%\Blizzard\Hearthstone\Logs"),
-    ]
+    POSSIBLE_ROOTS = get_platform_log_roots()
 
     def __init__(self, callback: Callable[[str], None]):
         self.callback = callback
