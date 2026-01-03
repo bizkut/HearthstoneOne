@@ -65,10 +65,14 @@ def effect_OG_280_battlecry(game, source, target):
 def effect_OG_133_battlecry(game, source, target):
     """N'Zoth, the Corruptor: Battlecry: Summon your Deathrattle minions that died this game."""
     graveyard = getattr(source.controller, 'graveyard', [])
-    deathrattle_dead = [cid for cid in graveyard]  # Simplified
-    for cid in deathrattle_dead[:7]:
+    # Filter for cards that have the deathrattle mechanic
+    deathrattle_minions = [
+        card.card_id for card in graveyard 
+        if hasattr(card, 'data') and getattr(card.data, 'deathrattle', False)
+    ]
+    for card_id in deathrattle_minions[:7]:
         if len(source.controller.board) < 7:
-            game.summon_token(source.controller, cid)
+            game.summon_token(source.controller, card_id)
 
 
 # OG_134 - Yogg-Saron, Hope's End

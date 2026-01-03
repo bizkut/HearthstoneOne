@@ -35,6 +35,7 @@ def effect_EX1_019_battlecry(game, source, target):
     if target and target.controller == source.controller:
         target._attack += 1
         target._health += 1
+        target.max_health += 1
 
 
 # EX1_029 - Leper Gnome

@@ -149,6 +149,11 @@ def get_effect(card_id: str):
 def register_all_effects(game) -> int:
     """Register all Fireplace-ported effects with a game instance.
     
+    Automatically routes effects to the correct handler dictionary based on function name:
+    - *_battlecry -> _battlecry_handlers
+    - *_deathrattle -> _deathrattle_handlers
+    - *_trigger -> _trigger_handlers (TODO: Needs proper event registration)
+    
     Args:
         game: The game instance to register effects with
         
@@ -158,9 +163,30 @@ def register_all_effects(game) -> int:
     effects = get_all_effects()
     count = 0
     for card_id, handler in effects.items():
-        if hasattr(game, '_battlecry_handlers'):
-            game._battlecry_handlers[card_id] = handler
-            count += 1
+        func_name = handler.__name__
+        
+        if func_name.endswith("_battlecry"):
+            if hasattr(game, '_battlecry_handlers'):
+                game._battlecry_handlers[card_id] = handler
+                count += 1
+        elif func_name.endswith("_deathrattle"):
+            if hasattr(game, '_deathrattle_handlers'):
+                game._deathrattle_handlers[card_id] = handler
+                count += 1
+        elif func_name.endswith("_trigger") or func_name.endswith("_inspire"):
+            # Triggers and Inspire effects are more complex, they need to be registered for specific events.
+            # For now, we unfortunately can't auto-register them easily without parsing 
+            # the docstring or having metadata.
+            # We'll skip them for now or put them in a separate dict if the game supports it.
+            # The current Game implementation has `_triggers` dict which is per-event.
+            pass
+        else:
+            # Fallback for older ported effects that might just be named 'effect_CARDID'
+            # Assume battlecry/spell cast for now
+            if hasattr(game, '_battlecry_handlers'):
+                game._battlecry_handlers[card_id] = handler
+                count += 1
+                
     return count
 
 

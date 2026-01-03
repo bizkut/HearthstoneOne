@@ -63,6 +63,13 @@ class Game:
         self._trigger_handlers: Dict[str, List[Callable]] = {}
         self._aura_handlers: Dict[str, Callable] = {}
         
+        # Register Fireplace-ported effects
+        try:
+            from card_effects.fireplace_registry import register_all_effects
+            register_all_effects(self)
+        except ImportError:
+            pass
+        
         # Game log
         self.action_history: List[Dict[str, Any]] = []
         
@@ -597,6 +604,64 @@ class Game:
             target._damage -= healed
             return healed
         return 0
+    
+    def transform(self, target: Card, new_card_id: str) -> Optional[Card]:
+        """Transform a minion into another card.
+        
+        Used by Polymorph, Hex, and similar effects.
+        
+        Args:
+            target: The minion to transform
+            new_card_id: The card ID to transform into
+            
+        Returns:
+            The new card, or None if transformation failed
+        """
+        from .card_loader import create_card
+        
+        if not target or target.card_type != CardType.MINION:
+            return None
+            
+        controller = target.controller
+        if not controller or target not in controller.board:
+            return None
+            
+        # Get position of original minion
+        position = controller.board.index(target)
+        
+        # Remove original from board (without triggering deathrattle)
+        controller.board.remove(target)
+        target.zone = Zone.SETASIDE  # Not graveyard - transformed, not dead
+        
+        # Create and place new minion
+        new_card = create_card(new_card_id, self)
+        if new_card and isinstance(new_card, Minion):
+            new_card.controller = controller
+            new_card.zone = Zone.PLAY
+            controller.board.insert(position, new_card)
+            return new_card
+            
+        return None
+    
+    def silence(self, target: Card) -> None:
+        """Silence a minion, removing all effects.
+        
+        Args:
+            target: The minion to silence
+        """
+        if not target or target.card_type != CardType.MINION:
+            return
+            
+        target.silenced = True
+        # Remove buffs/debuffs
+        target._taunt = False
+        target._divine_shield = False
+        target._windfury = False
+        target._stealth = False
+        target._poisonous = False
+        target._lifesteal = False
+        target._reborn = False
+        # Note: Attack/health changes from buffs would need a buff system to properly revert
     
     def destroy(self, entity: Card) -> None:
         """Mark an entity for destruction."""
