@@ -46,26 +46,30 @@ class FeatureEncoder:
         # Ideally we mask unknown information.
         
         hand_features = []
-        for card in state.friendly_player.hand:
+        # Clamp to max_hand to prevent dimension overflow
+        hand_to_encode = state.friendly_player.hand[:self.max_hand]
+        for card in hand_to_encode:
             hand_features.extend(self._encode_card(card))
-        # Pad
-        padding = [0] * self.card_dim * (self.max_hand - len(state.friendly_player.hand))
+        # Pad remaining slots
+        padding = [0] * self.card_dim * (self.max_hand - len(hand_to_encode))
         hand_features.extend(padding)
         
         # Opponent hand (Placeholder/Unknown)
         opp_hand_features = [0] * self.card_dim * self.max_hand 
         
-        # 3. Board Minions
+        # 3. Board Minions (clamp to max_board)
         board_features = []
-        for minion in state.friendly_player.board:
+        board_to_encode = state.friendly_player.board[:self.max_board]
+        for minion in board_to_encode:
             board_features.extend(self._encode_card(minion))
-        padding = [0] * self.card_dim * (self.max_board - len(state.friendly_player.board))
+        padding = [0] * self.card_dim * (self.max_board - len(board_to_encode))
         board_features.extend(padding)
         
         opp_board_features = []
-        for minion in state.enemy_player.board:
+        opp_board_to_encode = state.enemy_player.board[:self.max_board]
+        for minion in opp_board_to_encode:
             opp_board_features.extend(self._encode_card(minion))
-        padding = [0] * self.card_dim * (self.max_board - len(state.enemy_player.board))
+        padding = [0] * self.card_dim * (self.max_board - len(opp_board_to_encode))
         opp_board_features.extend(padding)
         
         # Combine
