@@ -1,0 +1,327 @@
+#!/usr/bin/env python3
+"""
+HearthstoneOne WebSocket Suggestion Server
+
+WebSocket server that:
+1. Receives Power.log lines from HSTracker
+2. Parses them to maintain Game state
+3. Runs MCTS when suggestion requested
+4. Pushes AI suggestions back to client
+"""
+
+import asyncio
+import json
+import sys
+import os
+from typing import Dict, Optional, Set
+from dataclasses import dataclass, asdict
+
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from simulator.game import Game
+from simulator.player import Player
+from runtime.parser import LogParser
+
+# AI imports
+try:
+    import torch
+    from ai.encoder import FeatureEncoder
+    from ai.model import HearthstoneModel
+    from ai.mcts import MCTS
+    from ai.device import get_best_device
+    AI_AVAILABLE = True
+except ImportError as e:
+    print(f"[WARNING] AI modules not available: {e}")
+    AI_AVAILABLE = False
+
+# WebSocket imports
+try:
+    import websockets
+    from websockets.server import serve
+    WEBSOCKETS_AVAILABLE = True
+except ImportError:
+    print("[ERROR] websockets library not installed. Run: pip install websockets")
+    WEBSOCKETS_AVAILABLE = False
+
+
+@dataclass
+class Suggestion:
+    """AI suggestion for a card play."""
+    action: str
+    card_id: Optional[str] = None
+    card_name: Optional[str] = None
+    card_index: Optional[int] = None
+    target_type: Optional[str] = None
+    target_index: Optional[int] = None
+    win_probability: float = 0.5
+
+
+class GameStateManager:
+    """Manages game state from streamed log lines."""
+    
+    def __init__(self):
+        self.game = Game()
+        # Initialize players
+        p1 = Player("Player 1", self.game)
+        p2 = Player("Player 2", self.game)
+        self.game.players = [p1, p2]
+        self.game.current_player_idx = 0
+        
+        self.parser = LogParser(self.game)
+        self.lines_parsed = 0
+        self.is_player_turn = False
+    
+    def process_log_line(self, line: str):
+        """Process a single log line."""
+        self.parser.parse_line(line)
+        self.lines_parsed += 1
+        
+        # Check if it's player's turn
+        if "TAG_CHANGE" in line and "CURRENT_PLAYER" in line and "value=1" in line:
+            local_player = self.parser.get_local_player()
+            if local_player:
+                # Check if this tag change is for the local player
+                if f"Entity={local_player.name}" in line or f"Entity={self.parser.local_player_id}" in line:
+                    self.is_player_turn = True
+        elif "TAG_CHANGE" in line and "CURRENT_PLAYER" in line and "value=0" in line:
+            self.is_player_turn = False
+    
+    def reset(self):
+        """Reset for new game."""
+        self.parser._reset_state()
+        self.lines_parsed = 0
+        self.is_player_turn = False
+    
+    def get_suggestion(self, model=None, encoder=None) -> Suggestion:
+        """Get AI suggestion for current game state."""
+        local_player = self.parser.get_local_player()
+        opponent = self.parser.get_opponent_player()
+        
+        if not local_player:
+            return Suggestion(action="end_turn", win_probability=0.5)
+        
+        # Use MCTS if model available
+        if model and encoder and AI_AVAILABLE:
+            return self._suggest_with_mcts(model, encoder)
+        else:
+            return self._suggest_with_heuristic(local_player, opponent)
+    
+    def _suggest_with_mcts(self, model, encoder) -> Suggestion:
+        """AI-based suggestion using MCTS."""
+        try:
+            mcts = MCTS(model, encoder, self.game, num_simulations=50)
+            action_probs = mcts.search(self.game)
+            
+            # Get best action
+            best_action_idx = int(action_probs.argmax())
+            
+            # Decode action to suggestion
+            # This depends on your action encoding
+            local_player = self.parser.get_local_player()
+            
+            # For now, map action index to hand card
+            if best_action_idx < len(local_player.hand):
+                card = local_player.hand[best_action_idx]
+                return Suggestion(
+                    action="play_card",
+                    card_id=card.card_id,
+                    card_name=card.name,
+                    card_index=best_action_idx,
+                    win_probability=float(action_probs[best_action_idx])
+                )
+            else:
+                return Suggestion(action="end_turn", win_probability=0.5)
+                
+        except Exception as e:
+            print(f"[MCTS Error] {e}")
+            return self._suggest_with_heuristic(
+                self.parser.get_local_player(),
+                self.parser.get_opponent_player()
+            )
+    
+    def _suggest_with_heuristic(self, local_player, opponent) -> Suggestion:
+        """Simple heuristic-based suggestion."""
+        if not local_player:
+            return Suggestion(action="end_turn", win_probability=0.5)
+        
+        mana = local_player.mana
+        hand = local_player.hand
+        
+        # Find playable cards
+        playable = []
+        for i, card in enumerate(hand):
+            if hasattr(card, 'cost') and card.cost <= mana:
+                playable.append((i, card))
+        
+        if not playable:
+            return Suggestion(action="end_turn", win_probability=0.5)
+        
+        # Pick highest cost playable card
+        playable.sort(key=lambda x: x[1].cost, reverse=True)
+        card_idx, card = playable[0]
+        
+        # Determine target
+        target_type = None
+        target_index = None
+        
+        if hasattr(card, 'requires_target') and card.requires_target:
+            if opponent and opponent.board:
+                target_type = "enemy_minion"
+                target_index = 0
+            else:
+                target_type = "enemy_hero"
+        
+        return Suggestion(
+            action="play_card",
+            card_id=getattr(card, 'card_id', None),
+            card_name=getattr(card, 'name', 'Unknown'),
+            card_index=card_idx,
+            target_type=target_type,
+            target_index=target_index,
+            win_probability=0.5 + (0.02 * len(playable))
+        )
+
+
+class WebSocketServer:
+    """WebSocket server for log streaming and AI suggestions."""
+    
+    def __init__(self, host: str = 'localhost', port: int = 9876, model_path: str = None):
+        self.host = host
+        self.port = port
+        self.model_path = model_path
+        
+        # Game state per connection
+        self.clients: Set = set()
+        self.game_states: Dict[str, GameStateManager] = {}
+        
+        # AI model (shared)
+        self.model = None
+        self.encoder = None
+        self._load_model()
+    
+    def _load_model(self):
+        """Load AI model if available."""
+        if not AI_AVAILABLE:
+            print("[WebSocketServer] AI modules not available, using heuristic")
+            return
+        
+        if self.model_path and os.path.exists(self.model_path):
+            try:
+                device = get_best_device()
+                self.encoder = FeatureEncoder()
+                self.model = HearthstoneModel(self.encoder.input_dim)
+                
+                checkpoint = torch.load(self.model_path, map_location=device, weights_only=False)
+                if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
+                    self.model.load_state_dict(checkpoint['model_state_dict'])
+                else:
+                    self.model.load_state_dict(checkpoint)
+                
+                self.model.to(device)
+                self.model.eval()
+                print(f"[WebSocketServer] Model loaded from {self.model_path}")
+            except Exception as e:
+                print(f"[WebSocketServer] Failed to load model: {e}")
+                self.model = None
+        else:
+            print("[WebSocketServer] No model path provided, using heuristic")
+    
+    async def handle_client(self, websocket):
+        """Handle a WebSocket client connection."""
+        client_id = str(id(websocket))
+        self.clients.add(websocket)
+        self.game_states[client_id] = GameStateManager()
+        
+        print(f"[WebSocketServer] Client connected: {client_id}")
+        
+        # Send initial status
+        await websocket.send(json.dumps({
+            "type": "status",
+            "connected": True,
+            "model_loaded": self.model is not None
+        }))
+        
+        try:
+            async for message in websocket:
+                await self._process_message(websocket, client_id, message)
+        except websockets.exceptions.ConnectionClosed:
+            pass
+        finally:
+            self.clients.discard(websocket)
+            del self.game_states[client_id]
+            print(f"[WebSocketServer] Client disconnected: {client_id}")
+    
+    async def _process_message(self, websocket, client_id: str, message: str):
+        """Process incoming WebSocket message."""
+        try:
+            data = json.loads(message)
+            msg_type = data.get("type")
+            
+            if msg_type == "log":
+                # Process log line
+                line = data.get("line", "")
+                self.game_states[client_id].process_log_line(line)
+                
+            elif msg_type == "request_suggestion":
+                # Get AI suggestion
+                suggestion = self.game_states[client_id].get_suggestion(
+                    self.model, self.encoder
+                )
+                await websocket.send(json.dumps({
+                    "type": "suggestion",
+                    **asdict(suggestion)
+                }))
+                
+            elif msg_type == "reset":
+                # Reset game state
+                self.game_states[client_id].reset()
+                await websocket.send(json.dumps({
+                    "type": "status",
+                    "reset": True
+                }))
+                
+        except json.JSONDecodeError:
+            print(f"[WebSocketServer] Invalid JSON: {message[:100]}")
+        except Exception as e:
+            print(f"[WebSocketServer] Error: {e}")
+    
+    async def start(self):
+        """Start the WebSocket server."""
+        if not WEBSOCKETS_AVAILABLE:
+            print("[ERROR] Cannot start: websockets library not installed")
+            return
+        
+        print(f"[WebSocketServer] Starting on ws://{self.host}:{self.port}")
+        print("[WebSocketServer] Messages:")
+        print("  Client → Server: {type: 'log', line: '...'}")
+        print("  Client → Server: {type: 'request_suggestion'}")
+        print("  Server → Client: {type: 'suggestion', action: '...', ...}")
+        
+        async with serve(self.handle_client, self.host, self.port):
+            await asyncio.Future()  # Run forever
+
+
+def main():
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='HearthstoneOne WebSocket Server')
+    parser.add_argument('--host', default='localhost', help='Host to bind to')
+    parser.add_argument('--port', type=int, default=9876, help='Port to bind to')
+    parser.add_argument('--model', default='models/run_20260103_211151/best_model.pt',
+                        help='Path to model checkpoint')
+    
+    args = parser.parse_args()
+    
+    server = WebSocketServer(args.host, args.port, args.model)
+    
+    print("\nPress Ctrl+C to stop\n")
+    
+    try:
+        asyncio.run(server.start())
+    except KeyboardInterrupt:
+        print("\nShutting down...")
+
+
+if __name__ == '__main__':
+    main()
