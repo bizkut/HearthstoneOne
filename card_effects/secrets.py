@@ -17,7 +17,7 @@ from typing import Optional, Callable, Dict, List
 SECRET_TRIGGERS = {
     # Mage
     "EX1_287": "on_spell_played",      # Counterspell
-    "EX1_289": "on_spell_targeted",    # Ice Barrier
+    "EX1_289": "on_hero_attacked",    # Ice Barrier
     "EX1_294": "on_minion_played",     # Mirror Entity
     "EX1_295": "on_fatal_damage",      # Ice Block
     "tt_010": "on_minion_attack",      # Spellbender
@@ -34,7 +34,7 @@ SECRET_TRIGGERS = {
     # Paladin
     "EX1_130": "on_minion_attack",     # Noble Sacrifice
     "EX1_136": "on_friendly_die",      # Redemption
-    "EX1_379": "on_friendly_die",      # Repentance (actually on_minion_played)
+    "EX1_379": "on_minion_played",    # Repentance
     "FP1_020": "on_friendly_die",      # Avenge
     
     # Rogue

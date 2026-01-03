@@ -457,6 +457,79 @@ class Game:
         
         return False
 
+    def _play_minion(
+        self, 
+        card: Card, 
+        target: Optional[Card] = None, 
+        position: int = -1
+    ) -> bool:
+        """Play a minion card."""
+        minion = card if isinstance(card, Minion) else Minion(card.data, self)
+        player = self.current_player
+        
+        if not player.summon(minion, position):
+            return False
+        
+        player.minions_played_this_turn += 1
+        player.minions_played_this_game_list.append(minion.card_id)
+        self.fire_event("on_minion_summon", minion)
+        
+        # Check for Mirror Entity, Snipe, etc (on_minion_played)
+        try:
+            from card_effects.secrets import check_secrets
+            event_data = {'card': minion}
+            check_secrets(self, "on_minion_played", event_data)
+        except ImportError:
+            pass
+        
+        # Trigger battlecry
+        if card.data.battlecry:
+            self._trigger_battlecry(minion, target)
+        
+        # Process deaths
+        self.process_deaths()
+        self.check_for_game_over()
+        
+        return True
+    
+    def _play_spell(self, card: Card, target: Optional[Card] = None) -> bool:
+        """Play a spell card."""
+        player = self.current_player
+        
+        # Trigger spell effect
+        if card.card_id in self._battlecry_handlers:
+            self._battlecry_handlers[card.card_id](self, card, target)
+        
+        # Move to graveyard
+        card.zone = Zone.GRAVEYARD
+        player.graveyard.append(card)
+        
+        # Process deaths
+        self.process_deaths()
+        self.check_for_game_over()
+        
+        return True
+    
+    def _play_weapon(self, card: Card) -> bool:
+        """Equip a weapon."""
+        weapon = card if isinstance(card, Weapon) else Weapon(card.data, self)
+        self.current_player.equip_weapon(weapon)
+        return True
+    
+    def _play_hero(self, card: Card) -> bool:
+        """Play a hero card (replaces current hero)."""
+        # Hero cards are complex - simplified for now
+        return True
+    
+    def _play_location(self, card: Card, position: int = -1) -> bool:
+        """Play a location card."""
+        player = self.current_player
+        
+        if not player.summon(card, position):
+            return False
+        
+        return True
+
     def attack(self, attacker: Card, defender: Card) -> bool:
         """Execute an attack."""
         player = self.current_player
