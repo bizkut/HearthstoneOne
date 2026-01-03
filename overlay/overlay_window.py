@@ -17,10 +17,25 @@ class OverlayWindow(QMainWindow):
         self.setWindowFlags(
             Qt.WindowType.WindowStaysOnTopHint | 
             Qt.WindowType.FramelessWindowHint | 
-            Qt.WindowType.Tool
+            Qt.WindowType.Tool |
+            Qt.WindowType.WindowDoesNotAcceptFocus  # Don't steal focus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
+        
+        # macOS-specific: Make window truly click-through
+        import platform
+        if platform.system() == "Darwin":
+            try:
+                from AppKit import NSWindow
+                # Get the native window handle after show()
+                # This will be applied in showEvent
+                self._needs_macos_passthrough = True
+            except ImportError:
+                self._needs_macos_passthrough = False
+        else:
+            self._needs_macos_passthrough = False
         
         # ... (Geometry resize logic existing)
         if QApplication.primaryScreen():
@@ -82,6 +97,25 @@ class OverlayWindow(QMainWindow):
                     self.geometry_callback(rect.width, rect.height)
         except Exception as e:
             pass  # Silently ignore tracking errors
+    
+    def showEvent(self, event):
+        """Called when window is shown. Apply macOS-specific click-through."""
+        super().showEvent(event)
+        
+        if getattr(self, '_needs_macos_passthrough', False):
+            try:
+                # Use Objective-C bridge to set NSWindow.ignoresMouseEvents
+                from AppKit import NSApplication
+                
+                # Get the NSWindow for this Qt window
+                ns_app = NSApplication.sharedApplication()
+                for ns_window in ns_app.windows():
+                    if "HearthstoneOne" in str(ns_window.title()):
+                        ns_window.setIgnoresMouseEvents_(True)
+                        print("[Overlay] macOS click-through enabled")
+                        break
+            except Exception as e:
+                print(f"[Overlay] macOS passthrough failed: {e}")
     
     def set_geometry_callback(self, callback):
         """Set callback for when window geometry changes."""
