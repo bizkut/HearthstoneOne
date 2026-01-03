@@ -1,1 +1,1 @@
-"""Runtime module for live game state tracking."""
+"""Runtime module for HearthstoneOne AI suggestion server."""
