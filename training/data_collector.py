@@ -23,27 +23,103 @@ from ai.actions import Action
 from simulator.game import Game
 from simulator.enums import GamePhase
 
+
+def _play_game_worker(args):
+    """Worker function for parallel game collection."""
+    mcts_sims, game_idx, model_state_dict, encoder = args
+    
+    # Recreate model in this process
+    model = HearthstoneModel(input_dim=690, action_dim=200)
+    model.load_state_dict(model_state_dict)
+    model.eval()
+    
+    env = HearthstoneGame()
+    state = env.reset(randomize_first=True)
+    
+    trajectory = []
+    step_count = 0
+    max_steps = 150
+    
+    while not env.is_game_over and step_count < max_steps:
+        root_game_state = env.game.clone()
+        mcts = MCTS(model, encoder, root_game_state, num_simulations=mcts_sims)
+        mcts_probs = mcts.search(root_game_state)
+        
+        encoded_state = encoder.encode(env.get_state())
+        p_id = 1 if env.current_player == env.game.players[0] else 2
+        trajectory.append((encoded_state, mcts_probs, p_id))
+        
+        action_idx = np.random.choice(len(mcts_probs), p=mcts_probs)
+        
+        # Apply action
+        action_obj = Action.from_index(action_idx)
+        game = env.game
+        player = env.current_player
+        
+        try:
+            if action_obj.action_type.name == "END_TURN":
+                game.end_turn()
+            elif action_obj.action_type.name == "PLAY_CARD":
+                if action_obj.card_index is not None and action_obj.card_index < len(player.hand):
+                    card = player.hand[action_obj.card_index]
+                    game.play_card(card, None)
+            elif action_obj.action_type.name == "HERO_POWER":
+                game.use_hero_power()
+        except:
+            pass
+        
+        step_count += 1
+    
+    winner = 0
+    if env.game.winner:
+        winner = 1 if env.game.winner == env.game.players[0] else 2
+    
+    return trajectory, winner
+
 class DataCollector:
     def __init__(self, model: HearthstoneModel, buffer: ReplayBuffer):
         self.model = model
         self.buffer = buffer
         self.encoder = FeatureEncoder()
         
-    def collect_games(self, num_games: int, mcts_sims: int = 25):
+    def collect_games(self, num_games: int, mcts_sims: int = 25, num_workers: int = None):
         """
         Run self-play games and populate buffer.
+        Uses multiprocessing for parallel game collection.
         """
+        import multiprocessing as mp
+        from functools import partial
+        
+        if num_workers is None:
+            num_workers = min(mp.cpu_count(), num_games, 8)  # Cap at 8 workers
+        
         print(f"Starting collection of {num_games} games with {mcts_sims} MCTS simulations per move...")
+        print(f"Using {num_workers} parallel workers")
         
         start_time = time.time()
         
-        for g in range(num_games):
-            trajectory, winner = self._play_single_game(mcts_sims, game_idx=g)
-            self.buffer.add_game(trajectory, winner)
-            
-            elapsed = time.time() - start_time
-            avg_time = elapsed / (g + 1)
-            print(f"Game {g+1}/{num_games} completed. Winner: Player {winner}. Buffer size: {len(self.buffer)}. Avg Time/Game: {avg_time:.2f}s")
+        if num_workers > 1:
+            # Parallel collection
+            with mp.Pool(processes=num_workers) as pool:
+                args = [(mcts_sims, i, self.model.state_dict(), self.encoder) for i in range(num_games)]
+                results = []
+                
+                for i, result in enumerate(pool.imap_unordered(_play_game_worker, args)):
+                    trajectory, winner = result
+                    self.buffer.add_game(trajectory, winner)
+                    
+                    elapsed = time.time() - start_time
+                    avg_time = elapsed / (i + 1)
+                    print(f"Game {i+1}/{num_games} completed. Winner: Player {winner}. Buffer size: {len(self.buffer)}. Avg Time/Game: {avg_time:.2f}s")
+        else:
+            # Sequential fallback
+            for g in range(num_games):
+                trajectory, winner = self._play_single_game(mcts_sims, game_idx=g)
+                self.buffer.add_game(trajectory, winner)
+                
+                elapsed = time.time() - start_time
+                avg_time = elapsed / (g + 1)
+                print(f"Game {g+1}/{num_games} completed. Winner: Player {winner}. Buffer size: {len(self.buffer)}. Avg Time/Game: {avg_time:.2f}s")
             
     def _play_single_game(self, mcts_sims: int, game_idx: int) -> Tuple[List, int]:
         """Plays one game returning (trajectory, winner_id)."""
