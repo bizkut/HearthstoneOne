@@ -145,11 +145,29 @@ class OverlayWindow(QMainWindow):
                     ns_window.setCanBecomeMainWindow_(False)
                     
                     print(f"[Overlay] macOS: Window level set to {max_level} (maximum)")
+                    
+                    # Start aggressive refresh timer to keep window on top
+                    if not hasattr(self, '_stay_on_top_timer'):
+                        self._stay_on_top_timer = QTimer()
+                        self._stay_on_top_timer.timeout.connect(self._force_to_front)
+                        self._stay_on_top_timer.start(100)  # Every 100ms
+                        print("[Overlay] Started aggressive stay-on-top timer")
                     break
         except Exception as e:
             print(f"[Overlay] macOS passthrough failed: {e}")
             import traceback
             traceback.print_exc()
+    
+    def _force_to_front(self):
+        """Aggressively force window to front."""
+        if hasattr(self, '_ns_window') and self._ns_window:
+            try:
+                from Quartz import CGWindowLevelForKey, kCGMaximumWindowLevelKey
+                max_level = CGWindowLevelForKey(kCGMaximumWindowLevelKey)
+                self._ns_window.setLevel_(max_level)
+                self._ns_window.orderFrontRegardless()
+            except:
+                pass
     
     def set_geometry_callback(self, callback):
         """Set callback for when window geometry changes."""
