@@ -53,6 +53,10 @@ class LogParser:
         # Track current block context
         self.current_entity_id: Optional[int] = None
         self.current_entity_tags: Dict[str, str] = {}
+        
+        # Callback for external observers (e.g. MetaTracker)
+        # Signature: (card_id: str, player_id: int) -> None
+        self.on_card_revealed = None
     
     def get_local_player(self) -> Optional[Player]:
         """Get the local player (the user playing the game)."""
@@ -323,6 +327,18 @@ class LogParser:
             entity = self.entity_map[entity_id]
             if hasattr(entity, 'card_id') and not entity.card_id:
                 entity.card_id = card_id
+                
+                # Notify observer
+                if self.on_card_revealed:
+                    # Try to find controller
+                    if hasattr(entity, 'controller'):
+                        # Entity controller is Player object
+                        try:
+                            # 1-based player ID
+                            pid = self.game.players.index(entity.controller) + 1
+                            self.on_card_revealed(card_id, pid)
+                        except ValueError:
+                            pass
         
         self.current_entity_id = entity_id
         self.current_entity_tags = {'CardID': card_id}
@@ -386,6 +402,12 @@ class LogParser:
                 del self.pending_entities[entity_id]
             
             print(f"[Parser] Created entity {entity_id}: {card_id}")
+            
+            # Notify observer
+            if self.on_card_revealed:
+                # controller_idx is 0-based, player_id is 1-based
+                self.on_card_revealed(card_id, controller_idx + 1)
+            
             return new_entity
         return None
     

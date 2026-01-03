@@ -77,7 +77,46 @@ class GameStateManager:
         self.parser = LogParser(self.game)
         self.lines_parsed = 0
         self.is_player_turn = False
-    
+        
+        # Meta tracking
+        self.meta_tracker = None
+        if MetaTracker:
+            self.meta_tracker = MetaTracker()
+            self.parser.on_card_revealed = self._on_card_revealed
+            
+    def _on_card_revealed(self, card_id: str, player_id: int):
+        """Callback from LogParser when a card is revealed."""
+        # Check if card belongs to opponent
+        local_player = self.parser.get_local_player()
+        opponent = self.parser.get_opponent_player()
+        
+        if not local_player or not opponent:
+            return
+            
+        # Get opponent index (1-based from parser)
+        opponent_idx = self.game.players.index(opponent) + 1
+        
+        if player_id == opponent_idx:
+            if self.meta_tracker:
+                # Need to map card_id string to int ID for classifier
+                # Ideally simulator/card_loader does this.
+                # using hash for now or simple int conversion if possible
+                # Actually DeckClassifier expects int IDs.
+                # For this simplified version we might need a DB lookup or hash.
+                # Assuming card_id is string like "CS2_039".
+                # To make it work with embedding, we need a stable mapping.
+                # ai/transformer_model.py uses CardData.id (int) or index.
+                # Let's use a simple hash for now or a placeholder.
+                # TODO: Real mapping.
+                pass 
+                # For now just use hash to avoid crashing
+                try:
+                    # quick hash to int
+                    cid = abs(hash(card_id)) % 10000 + 1
+                    self.meta_tracker.observe_card(cid)
+                except:
+                    pass
+
     def process_log_line(self, line: str):
         """Process a single log line."""
         self.parser.parse_line(line)
@@ -128,8 +167,22 @@ class GameStateManager:
             features = features.unsqueeze(0).to(device)
             mask = mask.unsqueeze(0).to(device)
             
+            # Phase 7: Meta-Aware
+            archetype_id = None
+            if hasattr(self, 'meta_tracker') and self.meta_tracker:
+                # Get archetype int from enum
+                arch = self.meta_tracker.get_archetype()
+                # Create tensor [1] for batch size 1
+                archetype_id = torch.tensor([int(arch)], device=device)
+            
             with torch.no_grad():
-                policy, value = model(ids, features, mask)
+                # Provide archetype_id if model supports it (Phase 7 upgrade)
+                if archetype_id is not None:
+                     # Check if model accepts archetype_id (inspect signature or try/except)
+                     # We know CardTransformer has it now.
+                    policy, value = model(ids, features, mask, archetype_id=archetype_id)
+                else:
+                    policy, value = model(ids, features, mask)
             
             # Get best action
             best_action_idx = int(policy.argmax().item())
