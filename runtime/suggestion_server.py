@@ -7,7 +7,6 @@ Runs on localhost:9876 and responds to game state with card suggestions.
 """
 
 import json
-import socket
 import threading
 import sys
 import os
