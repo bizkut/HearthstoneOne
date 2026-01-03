@@ -97,7 +97,10 @@ def effect_UNG_076_deathrattle(game, source, target):
 
 # UNG_082 - Thunder Lizard
 def effect_UNG_082_battlecry(game, source, target):
-    """Thunder Lizard: Battlecry: If you played an Elemental last turn, Adapt."""
+    """Thunder Lizard: Battlecry: If you played an Elemental last turn, Adapt.
+    
+    Note: Requires 'played_elemental_last_turn' tracking which may not be implemented.
+    """
     if getattr(source.controller, 'played_elemental_last_turn', False):
         _do_adapt(game, source)
 

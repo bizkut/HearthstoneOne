@@ -47,6 +47,7 @@ def effect_CFM_063_battlecry(game, source, target):
         target._attack = current_health
         target._health = current_attack
         target.max_health = current_attack
+        target._damage = 0  # Stat swap effectively heals to the new value
 
 
 # CFM_067 - Hozen Healer

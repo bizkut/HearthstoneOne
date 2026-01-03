@@ -85,9 +85,13 @@ def effect_BT_354_battlecry(game, source, target):
 
 # BT_427 - Feast of Souls
 def effect_BT_427_battlecry(game, source, target):
-    """Feast of Souls: Draw a card for each friendly minion that died this turn."""
+    """Feast of Souls: Draw a card for each friendly minion that died this turn.
+    
+    Note: Requires 'minions_died_this_turn' tracking.
+    """
     deaths_this_turn = getattr(source.controller, 'minions_died_this_turn', 0)
-    source.controller.draw(deaths_this_turn)
+    if deaths_this_turn > 0:
+        source.controller.draw(deaths_this_turn)
 
 
 # BT_488 - Soul Split
@@ -96,7 +100,15 @@ def effect_BT_488_battlecry(game, source, target):
     from simulator.enums import Race
     if target and hasattr(target.data, 'race') and target.data.race == Race.DEMON:
         if len(source.controller.board) < 7:
-            game.summon_token(source.controller, target.card_id)
+            # Create exact copy with stats
+            token = game.summon_token(source.controller, target.card_id)
+            if token:
+                token._attack = target.attack
+                token._max_health = target.max_health
+                token._health = target._health  # Base health
+                token._damage = target._damage
+                # Note: Buffs/Enchantments are not easily copied without a full copy method
+                # This approximates "exact copy" by copying current stats
 
 
 # BT_490 - Consume Magic
