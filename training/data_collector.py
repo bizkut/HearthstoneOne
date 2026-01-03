@@ -34,7 +34,8 @@ def _play_game_worker(args):
     model.eval()
     
     env = HearthstoneGame()
-    state = env.reset(randomize_first=True)
+    # Use meta decks with proper mulligan for realistic training
+    state = env.reset(randomize_first=True, use_meta_decks=True, do_mulligan=True)
     
     trajectory = []
     step_count = 0
@@ -124,7 +125,8 @@ class DataCollector:
     def _play_single_game(self, mcts_sims: int, game_idx: int) -> Tuple[List, int]:
         """Plays one game returning (trajectory, winner_id)."""
         env = HearthstoneGame()
-        state = env.reset(randomize_first=True) # Randomizes who goes first
+        # Use meta decks with proper mulligan for realistic training
+        state = env.reset(randomize_first=True, use_meta_decks=True, do_mulligan=True)
         
         trajectory = [] # (state_tensor, policy, player_id)
         

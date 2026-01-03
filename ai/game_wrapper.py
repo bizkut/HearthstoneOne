@@ -18,9 +18,11 @@ from .card import CardInstance
 from simulator import Game, Player, CardDatabase, create_card, Hero, CardType, CardData
 
 
-# Default decks for testing
-BASIC_MAGE_DECK = ["CS2_023", "CS2_024", "CS2_025", "CS2_027", "CS2_029", "CS2_032", "CS2_182"] * 5
-BASIC_WARRIOR_DECK = ["CS2_103", "CS2_105", "CS2_106", "CS2_108", "CS2_182", "CS2_186", "CS2_200"] * 5
+# Default decks for testing (proper 30-card decks)
+from training.meta_decks import BASIC_DECKS, get_random_deck_pair
+
+BASIC_MAGE_DECK = BASIC_DECKS["basic_mage"]
+BASIC_WARRIOR_DECK = BASIC_DECKS["basic_warrior"]
 
 
 class HearthstoneGame:
@@ -63,17 +65,77 @@ class HearthstoneGame:
         self,
         deck1: Optional[List[str]] = None,
         deck2: Optional[List[str]] = None,
+        deckstring1: Optional[str] = None,
+        deckstring2: Optional[str] = None,
         hero1: str = "HERO_08",
         hero2: str = "HERO_01",
         randomize_first: bool = True,
+        use_meta_decks: bool = False,
+        do_mulligan: bool = True,
     ) -> GameState:
-        deck1_ids = deck1 or BASIC_MAGE_DECK
-        deck2_ids = deck2 or BASIC_WARRIOR_DECK
+        """
+        Reset game with proper deck support.
+        
+        Args:
+            deck1/deck2: List of card IDs (30 cards)
+            deckstring1/deckstring2: Blizzard deck codes (AAEBA...)
+            use_meta_decks: If True, pick random meta decks
+            do_mulligan: If True, perform heuristic mulligan (not skip)
+        """
+        # Priority: deckstrings > explicit decks > meta decks > basic decks
+        if deckstring1 or deckstring2:
+            from simulator.deck_parser import parse_deckstring
+            db = CardDatabase.get_instance()
+            db.load()
+            
+            deck1_ids = []
+            deck2_ids = []
+            
+            if deckstring1:
+                try:
+                    info = parse_deckstring(deckstring1)
+                    for dbf_id, count in info.cards:
+                        card_id = db.get_card_id_by_dbf(dbf_id)
+                        if card_id:
+                            deck1_ids.extend([card_id] * count)
+                except Exception as e:
+                    print(f"Failed to parse deck1: {e}, using basic")
+                    deck1_ids = BASIC_MAGE_DECK
+            else:
+                deck1_ids = deck1 or BASIC_MAGE_DECK
+                
+            if deckstring2:
+                try:
+                    info = parse_deckstring(deckstring2)
+                    for dbf_id, count in info.cards:
+                        card_id = db.get_card_id_by_dbf(dbf_id)
+                        if card_id:
+                            deck2_ids.extend([card_id] * count)
+                except Exception as e:
+                    print(f"Failed to parse deck2: {e}, using basic")
+                    deck2_ids = BASIC_WARRIOR_DECK
+            else:
+                deck2_ids = deck2 or BASIC_WARRIOR_DECK
+                
+        elif use_meta_decks:
+            # Get random meta deck pair (as deckstrings)
+            ds1, ds2 = get_random_deck_pair()
+            return self.reset(deckstring1=ds1, deckstring2=ds2, 
+                            hero1=hero1, hero2=hero2, 
+                            randomize_first=randomize_first,
+                            do_mulligan=do_mulligan)
+        else:
+            deck1_ids = deck1 or BASIC_MAGE_DECK
+            deck2_ids = deck2 or BASIC_WARRIOR_DECK
+        
+        # Enforce 30-card limit
+        deck1_ids = deck1_ids[:30]
+        deck2_ids = deck2_ids[:30]
         
         p1 = Player("Player1")
         p2 = Player("Player2")
         
-        # Setup heroes (placeholder for now, should link to actual hero cards)
+        # Setup heroes
         h1_data = CardDatabase.get_card(hero1) or CardData(hero1, "Mage", card_type=CardType.HERO)
         h2_data = CardDatabase.get_card(hero2) or CardData(hero2, "Warrior", card_type=CardType.HERO)
         p1.hero = Hero(h1_data)
@@ -85,17 +147,34 @@ class HearthstoneGame:
         self._game.setup(p1, p2)
         
         # Add decks
-        for cid in deck1_ids: p1.add_to_deck(create_card(cid, self._game))
-        for cid in deck2_ids: p2.add_to_deck(create_card(cid, self._game))
+        for cid in deck1_ids: 
+            card = create_card(cid, self._game)
+            if card:
+                p1.add_to_deck(card)
+        for cid in deck2_ids: 
+            card = create_card(cid, self._game)
+            if card:
+                p2.add_to_deck(card)
         
         p1.shuffle_deck()
         p2.shuffle_deck()
         
         self._game.start_mulligan()
-        self._game.skip_mulligan() # Simplify for RL
+        
+        if do_mulligan:
+            # Heuristic mulligan: keep cards with cost <= 3
+            self._heuristic_mulligan(p1)
+            self._heuristic_mulligan(p2)
+        else:
+            self._game.skip_mulligan()
         
         self._step_count = 0
         return self.get_state()
+    
+    def _heuristic_mulligan(self, player: Player):
+        """Simple mulligan: throw back cards that cost > 3."""
+        cards_to_replace = [c for c in player.hand if c.cost > 3]
+        self._game.do_mulligan(player, cards_to_replace)
 
     def get_state(self) -> GameState:
         return GameState.from_simulator_game(self.game, self.perspective)
