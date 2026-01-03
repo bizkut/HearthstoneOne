@@ -89,7 +89,6 @@ class LogParser:
             if entity_id != -1:
                 entity = self._get_or_create_entity(entity_id, entity_data)
                 if entity and hasattr(entity, 'controller'):
-                    # Value 1 -> Player 0, Value 2 -> Player 1
                     try:
                         new_controller_idx = int(value) - 1
                         if 0 <= new_controller_idx < len(self.game.players):
@@ -97,7 +96,127 @@ class LogParser:
                             self._change_controller(entity, new_controller)
                     except ValueError:
                         pass
-
+        elif tag == "TAUNT":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.taunt = (value == "1")
+        elif tag == "DIVINE_SHIELD":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.divine_shield = (value == "1")
+        elif tag == "STEALTH":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.stealth = (value == "1")
+        elif tag == "FROZEN":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.frozen = (value == "1")
+        elif tag == "WINDFURY":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.windfury = (value == "1")
+        elif tag == "CHARGE":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.charge = (value == "1")
+        elif tag == "RUSH":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.rush = (value == "1")
+        elif tag == "IMMUNE":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.immune = (value == "1")
+        elif tag == "POISONOUS":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.poisonous = (value == "1")
+        elif tag == "LIFESTEAL":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.lifesteal = (value == "1")
+        elif tag == "REBORN":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.reborn = (value == "1")
+        elif tag == "SILENCED":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.silenced = (value == "1")
+        elif tag == "CANT_BE_TARGETED_BY_SPELLS":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.cant_be_targeted_by_spells = (value == "1")
+        elif tag == "CANT_BE_TARGETED_BY_HERO_POWERS":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.cant_be_targeted_by_hero_powers = (value == "1")
+        elif tag == "EXHAUSTED":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity:
+                    entity.exhausted = (value == "1")
+        elif tag == "ATK":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity and hasattr(entity, 'attack'):
+                    try:
+                        entity.attack = int(value)
+                    except ValueError:
+                        pass
+        elif tag == "HEALTH":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity and hasattr(entity, 'health'):
+                    try:
+                        entity.health = int(value)
+                    except ValueError:
+                        pass
+        elif tag == "ARMOR":
+            if entity_id != -1:
+                entity = self._get_or_create_entity(entity_id, entity_data)
+                if entity and hasattr(entity, 'armor'):
+                    try:
+                        entity.armor = int(value)
+                    except ValueError:
+                        pass
+        elif tag == "RESOURCES":
+            # Mana available
+            player_name = entity_data.get('name')
+            try:
+                mana_value = int(value)
+            except ValueError:
+                mana_value = 0
+            
+            # Try to match by name first
+            matched = False
+            if player_name:
+                for p in self.game.players:
+                    if p.name == player_name:
+                        p.mana = mana_value
+                        matched = True
+                        break
+            
+            # Fallback: if not matched, use player index from entity if available
+            if not matched and 'player' in entity_data:
+                idx = entity_data['player'] - 1
+                if 0 <= idx < len(self.game.players):
+                    self.game.players[idx].mana = mana_value
         elif tag == "CURRENT_PLAYER":
             if value == "1":
                 # Find player with this name

@@ -39,13 +39,26 @@ class AssistantWorker(QThread):
     def run(self):
         """Main loop in thread."""
         self.status_signal.emit("Searching for Hearthstone logs...")
-        self.watcher.start() # This is blocking in watcher, so we run it directly?
-        # Actually watcher.start() in my code (Step 2023) is blocking loop.
-        # Ideally LogWatcher should run and callback.
-        # But here we are in a Thread run(), so blocking is fine!
         
-        # However, watcher.start() calls callback.
-        # We need to handle AI logic inside callback or periodically?
+        # Start a refresh timer (calls think_and_suggest every 1 second)
+        from PyQt6.QtCore import QTimer
+        self.refresh_timer = QTimer()
+        self.refresh_timer.timeout.connect(self._refresh_suggestions)
+        self.refresh_timer.start(1000)  # 1 second
+        
+        self.watcher.start()
+    
+    def _refresh_suggestions(self):
+        """Periodically refresh suggestions based on current game state."""
+        # Find player with cards
+        me = None
+        for p in self.game.players:
+            if p.hand or p.board:
+                me = p
+                break
+        
+        if me:
+            self.think_and_suggest()
         
     def handle_log_line(self, line: str):
         """Called for every new log line."""
