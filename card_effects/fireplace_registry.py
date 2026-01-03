@@ -4,6 +4,9 @@ This module provides a unified interface to access all ported card effects
 across all expansions.
 """
 
+# Module-level cache for effects (populated on first call)
+_effects_cache = None
+
 
 def get_all_effects():
     """Get a combined dictionary of all ported card effects.
@@ -11,6 +14,12 @@ def get_all_effects():
     Returns:
         Dict[str, Callable]: Card ID -> effect handler mapping
     """
+    global _effects_cache
+    
+    # Return cached effects if available
+    if _effects_cache is not None:
+        return _effects_cache
+    
     all_effects = {}
     
     # Classic
@@ -125,6 +134,8 @@ def get_all_effects():
     except ImportError:
         pass
     
+    # Cache for future calls
+    _effects_cache = all_effects
     return all_effects
 
 

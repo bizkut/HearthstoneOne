@@ -57,16 +57,29 @@ class TestAICore(unittest.TestCase):
         
         clone = self.game.clone()
         
-        # Modify original
+        # Modify original - find a card that isn't already 0 cost
         p1.mana = 99
         print(f"Original Hand Size Post-Clone: {len(p1.hand)}")
         self.assertTrue(len(p1.hand) > 0, "Player hand is empty")
-        p1.hand[0].cost = 0
         
-        # Check clone is untouched
-        cloned_p1 = clone.players[p1_idx]
-        self.assertEqual(cloned_p1.mana, 0, "Clone mana should not change")
-        self.assertNotEqual(cloned_p1.hand[0].cost, 0, "Clone card cost should not change")
+        # Find a card that costs > 0 to test cloning
+        test_card_idx = None
+        original_cost = None
+        for i, card in enumerate(p1.hand):
+            if card.cost > 0:
+                test_card_idx = i
+                original_cost = card.cost
+                card.cost = 0
+                break
+        
+        if test_card_idx is None:
+            # All cards in hand are 0 cost (very unlikely), skip this check
+            print("SKIP: No non-zero cost cards in hand to test cloning")
+        else:
+            # Check clone is untouched
+            cloned_p1 = clone.players[p1_idx]
+            self.assertEqual(cloned_p1.mana, 0, "Clone mana should not change")
+            self.assertNotEqual(cloned_p1.hand[test_card_idx].cost, 0, "Clone card cost should not change")
         
         # Verify entities are different objects
         self.assertIsNot(p1, cloned_p1)

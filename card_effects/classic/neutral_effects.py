@@ -10,10 +10,15 @@ def effect_CS2_141_battlecry(game, source, target):
 
 # CS2_188 - Abusive Sergeant
 def effect_CS2_188_battlecry(game, source, target):
-    """Abusive Sergeant: Battlecry: Give a minion +2 Attack this turn."""
+    """Abusive Sergeant: Battlecry: Give a minion +2 Attack this turn.
+    
+    Note: This implementation gives permanent +2 Attack because the game engine
+    doesn't have a buff system with turn-end expiration. For full accuracy,
+    a buff tracking system would need to be implemented.
+    """
     if target and hasattr(target, '_attack'):
         target._attack += 2
-        # Note: Should reset at end of turn
+        # TODO: Register a turn-end trigger to remove this buff
 
 
 # CS2_189 - Elven Archer
