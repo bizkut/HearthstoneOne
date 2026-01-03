@@ -50,6 +50,20 @@ class CardData:
     secret: bool = False
     discover: bool = False
     outcast: bool = False
+    # New keywords (synced from python-hearthstone)
+    echo: bool = False
+    magnetic: bool = False
+    overkill: bool = False
+    twinspell: bool = False
+    spellburst: bool = False
+    corrupt: bool = False
+    dormant: bool = False
+    frenzy: bool = False
+    tradeable: bool = False
+    infuse: bool = False
+    colossal: bool = False
+    titan: bool = False
+    forge: bool = False
     
     # Extra data
     tags: Dict[int, int] = field(default_factory=dict)

@@ -158,7 +158,10 @@ class Mulligan(IntEnum):
 
 
 class GameTag(IntEnum):
-    """Common game tags (subset of full tags)."""
+    """Common game tags (subset of full tags).
+    
+    Values synced from python-hearthstone/hearthstone/enums.py
+    """
     INVALID = 0
     TAG_SCRIPT_DATA_NUM_1 = 2
     TAG_SCRIPT_DATA_NUM_2 = 3
@@ -168,7 +171,7 @@ class GameTag(IntEnum):
     HEALTH = 45
     ATK = 47
     COST = 48
-    EXHAUSTED = 50
+    EXHAUSTED = 43
     CONTROLLER = 50
     ZONE = 49
     CARD_ID = 56
@@ -178,26 +181,57 @@ class GameTag(IntEnum):
     CARDTYPE = 202
     RARITY = 203
     ELITE = 114
-    TAUNT = 190
+    DURABILITY = 187
+    SILENCED = 188
     WINDFURY = 189
+    TAUNT = 190
+    STEALTH = 191
+    SPELLPOWER = 192
     DIVINE_SHIELD = 194
     CHARGE = 197
-    STEALTH = 191
+    OVERLOAD = 215
+    DEATHRATTLE = 217
+    BATTLECRY = 218
+    SECRET = 219
+    COMBO = 220
+    FREEZE = 208
+    IMMUNE = 240
+    FROZEN = 260
+    ARMOR = 292
     POISONOUS = 363
+    ADAPT = 546
+    CANT_ATTACK = 227
+    CANT_BE_TARGETED = 246
+    CANT_BE_TARGETED_BY_SPELLS = 311
+    AURA = 362
+    DISCOVER = 415
+    CHOOSE_ONE = 443
+    JADE_GOLEM = 441
+    QUEST = 462
     LIFESTEAL = 685
     RUSH = 791
-    REBORN = 1543
-    BATTLECRY = 218
-    DEATHRATTLE = 217
-    SPELL_SCHOOL = 1885
-    ARMOR = 292
-    FROZEN = 260
-    CANT_ATTACK = 337
-    CANT_BE_TARGETED = 360
-    IMMUNE = 358
-    SILENCED = 188
-    SPELLPOWER = 106
-    AURA = 362
-    SECRET = 219
-    DISCOVER = 415
-    OUTCAST = 1118
+    ECHO = 846
+    MAGNETIC = 849
+    OVERKILL = 923
+    START_OF_GAME_KEYWORD = 968
+    REBORN = 1085
+    TWINSPELL = 1193
+    MEGA_WINDFURY = 1207
+    OUTCAST = 1333
+    SPELLBURST = 1427
+    CORRUPT = 1524
+    DORMANT = 1518
+    FRENZY = 1637
+    TRADEABLE = 1720
+    QUESTLINE = 1725
+    HONORABLE_KILL = 1920
+    INFUSE = 2456
+    DREDGE = 2332
+    COLOSSAL = 2247
+    TITAN = 2772
+    FORGE = 2785
+    FINALE = 2820
+    OVERHEAL = 2821
+    SPELL_SCHOOL = 1635
+    LOCATION_ACTION_COST = 2352
+    LOCATION_ACTION_COOLDOWN = 2353

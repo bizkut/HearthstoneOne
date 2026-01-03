@@ -19,6 +19,7 @@ class CardDatabase:
     
     _instance: Optional[CardDatabase] = None
     _cards: Dict[str, CardData] = {}
+    _dbf_to_card: Dict[int, str] = {}  # DBF ID to card_id lookup
     _loaded: bool = False
     _cache: EffectCache = EffectCache()
     
@@ -47,6 +48,10 @@ class CardDatabase:
                 card_data = cls._convert_card(card)
                 if card_data:
                     cls._cards[card_id] = card_data
+                    # Track DBF ID for deck code imports
+                    dbf_id = getattr(card, 'dbf_id', None)
+                    if dbf_id:
+                        cls._dbf_to_card[dbf_id] = card_id
             except Exception as e:
                 print(f"Error loading card {card_id}: {e}")
                 pass
@@ -124,6 +129,19 @@ class CardDatabase:
             secret='SECRET' in mechanics,
             discover='DISCOVER' in mechanics,
             outcast='OUTCAST' in mechanics,
+            echo='ECHO' in mechanics,
+            magnetic='MAGNETIC' in mechanics,
+            overkill='OVERKILL' in mechanics,
+            twinspell='TWINSPELL' in mechanics,
+            spellburst='SPELLBURST' in mechanics,
+            corrupt='CORRUPT' in mechanics,
+            dormant='DORMANT' in mechanics,
+            frenzy='FRENZY' in mechanics,
+            tradeable='TRADEABLE' in mechanics,
+            infuse='INFUSE' in mechanics,
+            colossal='COLOSSAL' in mechanics,
+            titan='TITAN' in mechanics,
+            forge='FORGE' in mechanics,
             tags={GameTag.SPELLPOWER.value: getattr(card, 'spell_damage', 0) or 0}
         )
     
@@ -194,9 +212,23 @@ class CardDatabase:
     @classmethod
     def get_card(cls, card_id: str) -> Optional[CardData]:
         """Get card data by ID."""
-        if not cls._loaded:
-            cls.load()
+        cls.load()
         return cls._cards.get(card_id)
+    
+    @classmethod
+    def get_card_by_dbf(cls, dbf_id: int) -> Optional[CardData]:
+        """Get card data by DBF ID (for deck code imports)."""
+        cls.load()
+        card_id = cls._dbf_to_card.get(dbf_id)
+        if card_id:
+            return cls._cards.get(card_id)
+        return None
+    
+    @classmethod
+    def get_card_id_by_dbf(cls, dbf_id: int) -> Optional[str]:
+        """Get card_id from DBF ID."""
+        cls.load()
+        return cls._dbf_to_card.get(dbf_id)
     
     @classmethod
     def get_collectible_cards(cls) -> List[CardData]:
