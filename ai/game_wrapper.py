@@ -206,20 +206,8 @@ class HearthstoneGame:
     
     def _get_class_index(self, hero_id: str) -> int:
         """Map hero ID to class index."""
-        class_map = {
-            "HERO_01": 0,  # Warrior
-            "HERO_02": 1,  # Shaman
-            "HERO_03": 2,  # Rogue
-            "HERO_04": 3,  # Paladin
-            "HERO_05": 4,  # Hunter
-            "HERO_06": 5,  # Druid
-            "HERO_07": 6,  # Warlock
-            "HERO_08": 7,  # Mage
-            "HERO_09": 8,  # Priest
-            "HERO_10": 9,  # Death Knight
-            "HERO_11": 10, # Demon Hunter
-        }
-        return class_map.get(hero_id[:7], 0)
+        from .utils import get_class_index
+        return get_class_index(hero_id)
     
     def _heuristic_mulligan(self, player: Player):
         """Simple mulligan: throw back cards that cost > 3."""

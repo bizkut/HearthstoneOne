@@ -55,10 +55,11 @@ class MulliganDataCollector:
                 env.reset(randomize_first=True, do_mulligan=False)
             
             # Get class indices
+            from ai.utils import get_class_index
             p1 = env.game.players[0]
             p2 = env.game.players[1]
-            p1_class = env._get_class_index(p1.hero.card_id if p1.hero else "HERO_08")
-            p2_class = env._get_class_index(p2.hero.card_id if p2.hero else "HERO_01")
+            p1_class = get_class_index(p1.hero.card_id if p1.hero else "HERO_08")
+            p2_class = get_class_index(p2.hero.card_id if p2.hero else "HERO_01")
             
             # Record mulligan for P1
             p1_hand = list(p1.hand)
