@@ -103,46 +103,53 @@ class OverlayWindow(QMainWindow):
         self._apply_macos_settings()
     
     def _apply_macos_settings(self):
-        """Apply macOS-specific window settings."""
+        """Apply macOS-specific window settings using Quartz APIs."""
         if not getattr(self, '_needs_macos_passthrough', False):
             return
             
         try:
-            from AppKit import NSApplication, NSScreenSaverWindowLevel
+            from AppKit import NSApplication
+            from Quartz import (
+                kCGDesktopIconWindowLevel,
+                CGWindowLevelForKey,
+                kCGMaximumWindowLevelKey,
+                kCGScreenSaverWindowLevelKey
+            )
             
             ns_app = NSApplication.sharedApplication()
             for ns_window in ns_app.windows():
-                if "HearthstoneOne" in str(ns_window.title()):
-                    # Store reference for periodic refresh
+                title = str(ns_window.title()) if ns_window.title() else ""
+                if "HearthstoneOne" in title:
                     self._ns_window = ns_window
                     
-                    # Make clicks pass through
+                    # Make clicks pass through completely
                     ns_window.setIgnoresMouseEvents_(True)
-                    # Use screen saver level (highest) to stay above all windows
-                    ns_window.setLevel_(NSScreenSaverWindowLevel)
-                    # Can appear on all spaces and doesn't activate
-                    # NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary
-                    ns_window.setCollectionBehavior_((1 << 0) | (1 << 7))
                     
-                    # Start refresh timer if not already running
-                    if not hasattr(self, '_macos_refresh_timer'):
-                        self._macos_refresh_timer = QTimer()
-                        self._macos_refresh_timer.timeout.connect(self._refresh_window_level)
-                        self._macos_refresh_timer.start(1000)  # Refresh every second
-                        print("[Overlay] macOS click-through and stay-on-top enabled (with refresh)")
+                    # Use the MAXIMUM possible window level
+                    # kCGMaximumWindowLevelKey is the highest possible level
+                    max_level = CGWindowLevelForKey(kCGMaximumWindowLevelKey)
+                    ns_window.setLevel_(max_level)
+                    
+                    # Collection behaviors:
+                    # 1 << 0 = CanJoinAllSpaces
+                    # 1 << 1 = MoveToActiveSpace  
+                    # 1 << 4 = Transient (not in window lists)
+                    # 1 << 7 = Stationary
+                    ns_window.setCollectionBehavior_((1 << 0) | (1 << 4) | (1 << 7))
+                    
+                    # Disable shadow for performance
+                    ns_window.setHasShadow_(False)
+                    
+                    # Make window non-activating
+                    ns_window.setCanBecomeKeyWindow_(False)
+                    ns_window.setCanBecomeMainWindow_(False)
+                    
+                    print(f"[Overlay] macOS: Window level set to {max_level} (maximum)")
                     break
         except Exception as e:
             print(f"[Overlay] macOS passthrough failed: {e}")
-    
-    def _refresh_window_level(self):
-        """Periodically reapply window level to stay on top."""
-        if hasattr(self, '_ns_window') and self._ns_window:
-            try:
-                from AppKit import NSScreenSaverWindowLevel
-                self._ns_window.setLevel_(NSScreenSaverWindowLevel)
-                self._ns_window.orderFrontRegardless()  # Force to front
-            except:
-                pass
+            import traceback
+            traceback.print_exc()
     
     def set_geometry_callback(self, callback):
         """Set callback for when window geometry changes."""
