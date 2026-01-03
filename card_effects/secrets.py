@@ -46,6 +46,8 @@ SECRET_TRIGGERS = {
 
 def secret_EX1_287(game, source, event_data):
     """Counterspell: When your opponent casts a spell, Counter it."""
+    if not event_data or not isinstance(event_data, dict):
+        return False
     spell = event_data.get('card')
     if spell:
         # Counter the spell (prevent it from resolving)
@@ -63,6 +65,8 @@ def secret_EX1_289(game, source, event_data):
 
 def secret_EX1_294(game, source, event_data):
     """Mirror Entity: When your opponent plays a minion, summon a copy of it."""
+    if not event_data or not isinstance(event_data, dict):
+        return False
     minion = event_data.get('card')
     if minion and len(source.controller.board) < 7:
         game.summon_token(source.controller, minion.card_id)
@@ -98,6 +102,8 @@ def secret_EX1_610(game, source, event_data):
 
 def secret_EX1_611(game, source, event_data):
     """Freezing Trap: When an enemy minion attacks, return it to its owner's hand. It costs (2) more."""
+    if not event_data or not isinstance(event_data, dict):
+        return False
     attacker = event_data.get('attacker')
     if attacker and attacker.card_type.name == 'MINION':
         # Return to hand
@@ -119,6 +125,8 @@ def secret_EX1_554(game, source, event_data):
 
 def secret_EX1_609(game, source, event_data):
     """Snipe: When your opponent plays a minion, deal 4 damage to it."""
+    if not event_data or not isinstance(event_data, dict):
+        return False
     minion = event_data.get('card')
     if minion:
         game.deal_damage(minion, 4)
@@ -138,6 +146,8 @@ def secret_EX1_130(game, source, event_data):
 
 def secret_EX1_136(game, source, event_data):
     """Redemption: When a friendly minion dies, return it to life with 1 Health."""
+    if not event_data or not isinstance(event_data, dict):
+        return False
     minion = event_data.get('minion')
     if minion and len(source.controller.board) < 7:
         game.summon_token(source.controller, minion.card_id)
