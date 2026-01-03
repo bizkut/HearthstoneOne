@@ -10,7 +10,7 @@ from typing import Optional, List, Dict, Any, Callable, Tuple
 from dataclasses import dataclass, field
 
 from .enums import GamePhase, Step, Zone, CardType, PlayState, Mulligan, GameTag
-from .entities import Entity, Card, CardData, Minion, Spell, Weapon, Hero, HeroPower
+from .entities import Entity, Card, CardData, Minion, Spell, Weapon, Hero, HeroPower, Location
 from .player import Player
 
 
@@ -186,6 +186,8 @@ class Game:
         new_game._deathrattle_handlers = self._deathrattle_handlers # Stateless
         
         return new_game
+    
+    def start_discover(self, player: Player, options: List[Card], callback: Callable) -> None:
         """Pause game and wait for player to choose one of 3 cards."""
         self.pending_choices = {
             "player": player,
@@ -213,6 +215,7 @@ class Game:
         self.process_deaths()
         self.check_for_game_over()
         return True
+
     def register_trigger(self, event_name: str, source: Entity, callback: Callable) -> None:
         """Register a trigger callback."""
         if event_name in self._triggers:
@@ -698,6 +701,37 @@ class Game:
         # Trigger effect
         if hero_power.card_id in self._battlecry_handlers:
             self._battlecry_handlers[hero_power.card_id](self, hero_power, target)
+        
+        # Process deaths
+        self.process_deaths()
+        self.check_for_game_over()
+        
+        return True
+    
+    def use_location(self, location: Location, target: Optional[Card] = None) -> bool:
+        """Use a location card's ability."""
+        player = self.current_player
+        
+        # Validate location is on our board
+        if location not in player.board:
+            return False
+        
+        # Check if location can be used (not on cooldown, has durability)
+        if not location.can_use():
+            return False
+        
+        # Log action
+        self._log_action("use_location", {
+            "location": location.card_id,
+            "target": target.card_id if target else None
+        })
+        
+        # Use the location (sets cooldown and reduces durability)
+        location.use()
+        
+        # Trigger effect
+        if location.card_id in self._battlecry_handlers:
+            self._battlecry_handlers[location.card_id](self, location, target)
         
         # Process deaths
         self.process_deaths()

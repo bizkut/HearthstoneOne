@@ -95,20 +95,70 @@ class Player(Entity):
                      setattr(new_player, k, set(v))
                      
         return new_player
-        self.damage_taken_this_turn: int = 0
-        self.healing_taken_this_turn: int = 0
-        
-        # Current turn counters
-        self.cards_played_this_turn: int = 0
-        self.minions_played_this_turn: int = 0
-        self.spells_played_this_turn: int = 0
-        self.hero_power_uses_this_turn: int = 0
-        
-        # Status
-        self.conceded: bool = False
-        
-        # Opponent reference
-        self.opponent: Optional[Player] = None
+    
+    @property
+    def damage_taken_this_turn(self) -> int:
+        return getattr(self, '_damage_taken_this_turn', 0)
+    
+    @damage_taken_this_turn.setter
+    def damage_taken_this_turn(self, value: int) -> None:
+        self._damage_taken_this_turn = value
+    
+    @property
+    def healing_taken_this_turn(self) -> int:
+        return getattr(self, '_healing_taken_this_turn', 0)
+    
+    @healing_taken_this_turn.setter
+    def healing_taken_this_turn(self, value: int) -> None:
+        self._healing_taken_this_turn = value
+    
+    @property
+    def cards_played_this_turn(self) -> int:
+        return getattr(self, '_cards_played_this_turn', 0)
+    
+    @cards_played_this_turn.setter
+    def cards_played_this_turn(self, value: int) -> None:
+        self._cards_played_this_turn = value
+    
+    @property
+    def minions_played_this_turn(self) -> int:
+        return getattr(self, '_minions_played_this_turn', 0)
+    
+    @minions_played_this_turn.setter
+    def minions_played_this_turn(self, value: int) -> None:
+        self._minions_played_this_turn = value
+    
+    @property
+    def spells_played_this_turn(self) -> int:
+        return getattr(self, '_spells_played_this_turn', 0)
+    
+    @spells_played_this_turn.setter
+    def spells_played_this_turn(self, value: int) -> None:
+        self._spells_played_this_turn = value
+    
+    @property
+    def hero_power_uses_this_turn(self) -> int:
+        return getattr(self, '_hero_power_uses_this_turn', 0)
+    
+    @hero_power_uses_this_turn.setter
+    def hero_power_uses_this_turn(self, value: int) -> None:
+        self._hero_power_uses_this_turn = value
+    
+    @property
+    def conceded(self) -> bool:
+        return getattr(self, '_conceded', False)
+    
+    @conceded.setter
+    def conceded(self, value: bool) -> None:
+        self._conceded = value
+    
+    @property
+    def opponent(self) -> Optional['Player']:
+        return getattr(self, '_opponent', None)
+    
+    @opponent.setter
+    def opponent(self, value: Optional['Player']) -> None:
+        self._opponent = value
     
     @property
     def spell_damage(self) -> int:
