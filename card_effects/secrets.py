@@ -71,6 +71,8 @@ def secret_EX1_294(game, source, event_data):
 
 def secret_EX1_295(game, source, event_data):
     """Ice Block: When your hero takes fatal damage, prevent it and become Immune this turn."""
+    if not event_data or not isinstance(event_data, dict):
+        return False
     hero = source.controller.hero
     if hero:
         # Check if damage would be fatal
