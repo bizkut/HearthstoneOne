@@ -169,6 +169,20 @@ def get_all_effects():
     except ImportError:
         pass
     
+    # Secrets system
+    try:
+        from card_effects.secrets import SECRET_HANDLERS
+        all_effects.update(SECRET_HANDLERS)
+    except ImportError:
+        pass
+    
+    # Staple cards
+    try:
+        from card_effects.staples import STAPLE_EFFECTS
+        all_effects.update(STAPLE_EFFECTS)
+    except ImportError:
+        pass
+    
     # Cache for future calls
     _effects_cache = all_effects
     return all_effects
