@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # DRG_049 - Tasty Flyfish
-def effect_DRG_049_deathrattle(game, source, target):
+def effect_DRG_049_deathrattle(game, source):
     """Tasty Flyfish: Deathrattle: Give a Dragon in your hand +2/+2."""
     from simulator.enums import Race
     dragons = [c for c in source.controller.hand if getattr(c.data, 'race', None) == Race.DRAGON]

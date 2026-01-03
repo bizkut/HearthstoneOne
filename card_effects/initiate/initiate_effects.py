@@ -21,7 +21,7 @@ def effect_BT_355_trigger(game, source, death_event):
 
 
 # BT_407 - Ur'zul Horror
-def effect_BT_407_deathrattle(game, source, target):
+def effect_BT_407_deathrattle(game, source):
     """Ur'zul Horror: Deathrattle: Add a 2/1 Lost Soul to your hand."""
     from simulator.card_loader import create_card
     soul = create_card("BT_407t", game)

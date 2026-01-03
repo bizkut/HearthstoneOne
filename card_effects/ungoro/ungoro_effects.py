@@ -70,7 +70,7 @@ def effect_UNG_009_battlecry(game, source, target):
 
 
 # UNG_010 - Sated Threshadon
-def effect_UNG_010_deathrattle(game, source, target):
+def effect_UNG_010_deathrattle(game, source):
     """Sated Threshadon: Deathrattle: Summon three 1/1 Murlocs."""
     for _ in range(3):
         if len(source.controller.board) < 7:
@@ -88,7 +88,7 @@ def effect_UNG_073_battlecry(game, source, target):
 
 
 # UNG_076 - Eggnapper
-def effect_UNG_076_deathrattle(game, source, target):
+def effect_UNG_076_deathrattle(game, source):
     """Eggnapper: Deathrattle: Summon two 1/1 Raptors."""
     for _ in range(2):
         if len(source.controller.board) < 7:
@@ -144,7 +144,7 @@ def effect_UNG_809_battlecry(game, source, target):
 
 
 # UNG_818 - Volatile Elemental
-def effect_UNG_818_deathrattle(game, source, target):
+def effect_UNG_818_deathrattle(game, source):
     """Volatile Elemental: Deathrattle: Deal 3 damage to a random enemy minion."""
     enemies = list(source.controller.opponent.board)
     if enemies:
@@ -152,7 +152,7 @@ def effect_UNG_818_deathrattle(game, source, target):
 
 
 # UNG_845 - Igneous Elemental
-def effect_UNG_845_deathrattle(game, source, target):
+def effect_UNG_845_deathrattle(game, source):
     """Igneous Elemental: Deathrattle: Add two 1/2 Elementals to your hand."""
     from simulator.card_loader import create_card
     for _ in range(2):

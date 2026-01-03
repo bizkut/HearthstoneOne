@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # ULD_174 - Serpent Egg
-def effect_ULD_174_deathrattle(game, source, target):
+def effect_ULD_174_deathrattle(game, source):
     """Serpent Egg: Deathrattle: Summon a 3/4 Sea Serpent."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "ULD_174t")
@@ -21,7 +21,7 @@ def effect_ULD_182_trigger(game, source, turn_end):
 
 
 # ULD_183 - Anubisath Warbringer
-def effect_ULD_183_deathrattle(game, source, target):
+def effect_ULD_183_deathrattle(game, source):
     """Anubisath Warbringer: Deathrattle: Give all minions in your hand +3/+3."""
     from simulator.enums import CardType
     for card in source.controller.hand:
@@ -31,7 +31,7 @@ def effect_ULD_183_deathrattle(game, source, target):
 
 
 # ULD_184 - Kobold Sandtrooper
-def effect_ULD_184_deathrattle(game, source, target):
+def effect_ULD_184_deathrattle(game, source):
     """Kobold Sandtrooper: Deathrattle: Deal 3 damage to the enemy hero."""
     if source.controller.opponent.hero:
         game.deal_damage(source.controller.opponent.hero, 3)
@@ -66,7 +66,7 @@ def effect_ULD_271_battlecry(game, source, target):
 
 
 # ULD_282 - Jar Dealer
-def effect_ULD_282_deathrattle(game, source, target):
+def effect_ULD_282_deathrattle(game, source):
     """Jar Dealer: Deathrattle: Add a random 1-Cost minion to your hand."""
     from simulator.card_loader import CardDatabase, create_card
     from simulator.enums import CardType

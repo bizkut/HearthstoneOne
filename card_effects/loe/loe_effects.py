@@ -15,7 +15,7 @@ def effect_LOE_011_battlecry(game, source, target):
 
 
 # LOE_012 - Tomb Pillager
-def effect_LOE_012_deathrattle(game, source, target):
+def effect_LOE_012_deathrattle(game, source):
     """Tomb Pillager: Deathrattle: Add a Coin to your hand."""
     from simulator.card_loader import create_card
     coin = create_card("GAME_005", game)
@@ -39,7 +39,7 @@ def effect_LOE_018_trigger(game, source, overload_event):
 
 
 # LOE_046 - Huge Toad
-def effect_LOE_046_deathrattle(game, source, target):
+def effect_LOE_046_deathrattle(game, source):
     """Huge Toad: Deathrattle: Deal 1 damage to a random enemy."""
     targets = list(source.controller.opponent.board) + [source.controller.opponent.hero]
     targets = [t for t in targets if t and getattr(t, 'health', 1) > 0]
@@ -48,7 +48,7 @@ def effect_LOE_046_deathrattle(game, source, target):
 
 
 # LOE_050 - Mounted Raptor
-def effect_LOE_050_deathrattle(game, source, target):
+def effect_LOE_050_deathrattle(game, source):
     """Mounted Raptor: Deathrattle: Summon a random 1-Cost minion."""
     from simulator.card_loader import CardDatabase
     from simulator.enums import CardType
@@ -65,7 +65,7 @@ def effect_LOE_050_deathrattle(game, source, target):
 
 
 # LOE_061 - Anubisath Sentinel
-def effect_LOE_061_deathrattle(game, source, target):
+def effect_LOE_061_deathrattle(game, source):
     """Anubisath Sentinel: Deathrattle: Give a random friendly minion +3/+3."""
     others = [m for m in source.controller.board if m != source]
     if others:
@@ -80,7 +80,7 @@ def effect_LOE_061_deathrattle(game, source, target):
 
 
 # LOE_089 - Wobbling Runts
-def effect_LOE_089_deathrattle(game, source, target):
+def effect_LOE_089_deathrattle(game, source):
     """Wobbling Runts: Deathrattle: Summon three 2/2 Runts."""
     tokens = ["LOE_089t", "LOE_089t2", "LOE_089t3"]
     for token_id in tokens:

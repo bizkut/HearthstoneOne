@@ -71,13 +71,13 @@ def effect_BOT_548_battlecry(game, source, target):
 
 
 # EX1_012 - Bloodmage Thalnos
-def effect_EX1_012_deathrattle(game, source, target):
+def effect_EX1_012_deathrattle(game, source):
     """Bloodmage Thalnos: Spell Damage +1. Deathrattle: Draw a card."""
     source.controller.draw(1)
 
 
 # EX1_016 - Sylvanas Windrunner
-def effect_EX1_016_deathrattle(game, source, target):
+def effect_EX1_016_deathrattle(game, source):
     """Sylvanas Windrunner: Deathrattle: Take control of a random enemy minion."""
     enemy_minions = list(source.controller.opponent.board)
     if enemy_minions and len(source.controller.board) < 7:

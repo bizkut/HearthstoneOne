@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # BOT_031 - Goblin Bomb
-def effect_BOT_031_deathrattle(game, source, target):
+def effect_BOT_031_deathrattle(game, source):
     """Goblin Bomb: Deathrattle: Deal 2 damage to the enemy hero."""
     if source.controller.opponent.hero:
         game.deal_damage(source.controller.opponent.hero, 2)
@@ -54,7 +54,7 @@ def effect_BOT_431_battlecry(game, source, target):
 
 
 # BOT_445 - Mecharoo
-def effect_BOT_445_deathrattle(game, source, target):
+def effect_BOT_445_deathrattle(game, source):
     """Mecharoo: Deathrattle: Summon a 1/1 Jo-E Bot."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "BOT_445t")
@@ -103,7 +103,7 @@ def effect_BOT_562_battlecry(game, source, target):
 
 
 # BOT_606 - Kaboom Bot
-def effect_BOT_606_deathrattle(game, source, target):
+def effect_BOT_606_deathrattle(game, source):
     """Kaboom Bot: Deathrattle: Deal 4 damage to a random enemy minion."""
     enemies = list(source.controller.opponent.board)
     if enemies:

@@ -58,7 +58,7 @@ def effect_CFM_067_battlecry(game, source, target):
 
 
 # CFM_120 - Mistress of Mixtures
-def effect_CFM_120_deathrattle(game, source, target):
+def effect_CFM_120_deathrattle(game, source):
     """Mistress of Mixtures: Deathrattle: Restore 4 Health to each hero."""
     for player in game.players:
         if player.hero:
@@ -66,7 +66,7 @@ def effect_CFM_120_deathrattle(game, source, target):
 
 
 # CFM_341 - Sergeant Sally
-def effect_CFM_341_deathrattle(game, source, target):
+def effect_CFM_341_deathrattle(game, source):
     """Sergeant Sally: Deathrattle: Deal damage equal to this minion's Attack to all enemy minions."""
     damage = source.attack
     for minion in source.controller.opponent.board[:]:
@@ -147,7 +147,7 @@ def effect_CFM_637_on_after_card_played(game, self_card, played_card):
 
 
 # CFM_646 - Backstreet Leper
-def effect_CFM_646_deathrattle(game, source, target):
+def effect_CFM_646_deathrattle(game, source):
     """Backstreet Leper: Deathrattle: Deal 2 damage to the enemy hero."""
     if source.controller.opponent.hero:
         game.deal_damage(source.controller.opponent.hero, 2)
@@ -225,7 +225,7 @@ def effect_CFM_902_battlecry(game, source, target):
     _summon_jade_golem(game, source.controller)
 
 
-def effect_CFM_902_deathrattle(game, source, target):
+def effect_CFM_902_deathrattle(game, source):
     """Aya Blackpaw: Deathrattle: Summon a Jade Golem."""
     _summon_jade_golem(game, source.controller)
 

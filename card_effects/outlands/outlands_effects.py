@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # BT_008 - Rustsworn Initiate
-def effect_BT_008_deathrattle(game, source, target):
+def effect_BT_008_deathrattle(game, source):
     """Rustsworn Initiate: Deathrattle: Summon a 1/1 Impcaster with Spell Damage +1."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "BT_008t")
@@ -92,14 +92,14 @@ def effect_BT_724_battlecry(game, source, target):
 
 
 # BT_726 - Dragonmaw Sky Stalker
-def effect_BT_726_deathrattle(game, source, target):
+def effect_BT_726_deathrattle(game, source):
     """Dragonmaw Sky Stalker: Deathrattle: Summon a 3/4 Dragonrider."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "BT_726t")
 
 
 # BT_728 - Disguised Wanderer
-def effect_BT_728_deathrattle(game, source, target):
+def effect_BT_728_deathrattle(game, source):
     """Disguised Wanderer: Deathrattle: Summon a 9/1 Inquisitor."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "BT_728t")

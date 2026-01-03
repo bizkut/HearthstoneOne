@@ -6,14 +6,14 @@ import random
 # === MINIONS ===
 
 # FP1_001 - Zombie Chow
-def effect_FP1_001_deathrattle(game, source, target):
+def effect_FP1_001_deathrattle(game, source):
     """Zombie Chow: Deathrattle: Restore 5 Health to the enemy hero."""
     if source.controller.opponent.hero:
         game.heal(source.controller.opponent.hero, 5)
 
 
 # FP1_002 - Haunted Creeper
-def effect_FP1_002_deathrattle(game, source, target):
+def effect_FP1_002_deathrattle(game, source):
     """Haunted Creeper: Deathrattle: Summon two 1/1 Spectral Spiders."""
     for _ in range(2):
         if len(source.controller.board) < 7:
@@ -21,14 +21,14 @@ def effect_FP1_002_deathrattle(game, source, target):
 
 
 # FP1_007 - Nerubian Egg
-def effect_FP1_007_deathrattle(game, source, target):
+def effect_FP1_007_deathrattle(game, source):
     """Nerubian Egg: Deathrattle: Summon a 4/4 Nerubian."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "FP1_007t")
 
 
 # FP1_012 - Sludge Belcher
-def effect_FP1_012_deathrattle(game, source, target):
+def effect_FP1_012_deathrattle(game, source):
     """Sludge Belcher: Deathrattle: Summon a 1/2 Slime with Taunt."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "FP1_012t")
@@ -43,7 +43,7 @@ def effect_FP1_016_battlecry(game, source, target):
 
 
 # FP1_022 - Voidcaller
-def effect_FP1_022_deathrattle(game, source, target):
+def effect_FP1_022_deathrattle(game, source):
     """Voidcaller: Deathrattle: Put a random Demon from your hand into the battlefield."""
     from simulator.enums import Race
     demons = [c for c in source.controller.hand if getattr(c.data, 'race', None) == Race.DEMON]
@@ -54,7 +54,7 @@ def effect_FP1_022_deathrattle(game, source, target):
 
 
 # FP1_023 - Dark Cultist
-def effect_FP1_023_deathrattle(game, source, target):
+def effect_FP1_023_deathrattle(game, source):
     """Dark Cultist: Deathrattle: Give a random friendly minion +3 Health."""
     others = [m for m in source.controller.board if m != source]
     if others:
@@ -64,7 +64,7 @@ def effect_FP1_023_deathrattle(game, source, target):
 
 
 # FP1_024 - Unstable Ghoul
-def effect_FP1_024_deathrattle(game, source, target):
+def effect_FP1_024_deathrattle(game, source):
     """Unstable Ghoul: Deathrattle: Deal 1 damage to all minions."""
     for p in game.players:
         for m in p.board[:]:
@@ -72,7 +72,7 @@ def effect_FP1_024_deathrattle(game, source, target):
 
 
 # FP1_026 - Anub'ar Ambusher
-def effect_FP1_026_deathrattle(game, source, target):
+def effect_FP1_026_deathrattle(game, source):
     """Anub'ar Ambusher: Deathrattle: Return a random friendly minion to your hand."""
     others = [m for m in source.controller.board if m != source]
     if others:
@@ -81,7 +81,7 @@ def effect_FP1_026_deathrattle(game, source, target):
 
 
 # FP1_029 - Dancing Swords
-def effect_FP1_029_deathrattle(game, source, target):
+def effect_FP1_029_deathrattle(game, source):
     """Dancing Swords: Deathrattle: Your opponent draws a card."""
     source.controller.opponent.draw(1)
 
@@ -134,7 +134,7 @@ def effect_FP1_025_battlecry(game, source, target):
 # === WEAPONS ===
 
 # FP1_021 - Death's Bite
-def effect_FP1_021_deathrattle(game, source, target):
+def effect_FP1_021_deathrattle(game, source):
     """Death's Bite: Deathrattle: Deal 1 damage to all minions."""
     for p in game.players:
         for m in p.board[:]:

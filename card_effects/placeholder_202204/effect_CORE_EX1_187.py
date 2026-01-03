@@ -1,3 +1,4 @@
+from simulator.enums import CardType
 """Effect for CORE_EX1_187 in PLACEHOLDER_202204"""
 
 def setup(game, source):

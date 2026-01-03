@@ -98,7 +98,7 @@ def effect_OG_042_trigger(game, source, turn_end):
 # === NEUTRAL MINIONS ===
 
 # OG_151 - Tentacle of N'Zoth
-def effect_OG_151_deathrattle(game, source, target):
+def effect_OG_151_deathrattle(game, source):
     """Tentacle of N'Zoth: Deathrattle: Deal 1 damage to all minions."""
     for p in game.players:
         for m in p.board[:]:
@@ -113,7 +113,7 @@ def effect_OG_156_battlecry(game, source, target):
 
 
 # OG_158 - Zealous Initiate
-def effect_OG_158_deathrattle(game, source, target):
+def effect_OG_158_deathrattle(game, source):
     """Zealous Initiate: Deathrattle: Give a random friendly minion +1/+1."""
     others = [m for m in source.controller.board if m != source]
     if others:
@@ -124,14 +124,14 @@ def effect_OG_158_deathrattle(game, source, target):
 
 
 # OG_249 - Infested Tauren
-def effect_OG_249_deathrattle(game, source, target):
+def effect_OG_249_deathrattle(game, source):
     """Infested Tauren: Deathrattle: Summon a 2/2 Slime."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "OG_249a")
 
 
 # OG_256 - Spawn of N'Zoth
-def effect_OG_256_deathrattle(game, source, target):
+def effect_OG_256_deathrattle(game, source):
     """Spawn of N'Zoth: Deathrattle: Give your minions +1/+1."""
     for m in source.controller.board:
         m._attack += 1
@@ -148,13 +148,13 @@ def effect_OG_295_battlecry(game, source, target):
 
 
 # OG_323 - Polluted Hoarder
-def effect_OG_323_deathrattle(game, source, target):
+def effect_OG_323_deathrattle(game, source):
     """Polluted Hoarder: Deathrattle: Draw a card."""
     source.controller.draw(1)
 
 
 # OG_317 - Deathwing, Dragonlord
-def effect_OG_317_deathrattle(game, source, target):
+def effect_OG_317_deathrattle(game, source):
     """Deathwing, Dragonlord: Deathrattle: Put all Dragons from your hand into the battlefield."""
     from simulator.enums import Race
     dragons = [c for c in source.controller.hand if getattr(c.data, 'race', None) == Race.DRAGON]

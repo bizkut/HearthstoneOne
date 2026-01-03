@@ -13,14 +13,14 @@ def effect_TRL_151_battlecry(game, source, target):
 
 
 # TRL_363 - Saronite Taskmaster
-def effect_TRL_363_deathrattle(game, source, target):
+def effect_TRL_363_deathrattle(game, source):
     """Saronite Taskmaster: Deathrattle: Summon a 0/3 Free Agent with Taunt for your opponent."""
     if len(source.controller.opponent.board) < 7:
         game.summon_token(source.controller.opponent, "TRL_363t")
 
 
 # TRL_503 - Scarab Egg
-def effect_TRL_503_deathrattle(game, source, target):
+def effect_TRL_503_deathrattle(game, source):
     """Scarab Egg: Deathrattle: Summon three 1/1 Scarabs."""
     for _ in range(3):
         if len(source.controller.board) < 7:
@@ -67,7 +67,7 @@ def effect_TRL_517_battlecry(game, source, target):
 
 
 # TRL_525 - Arena Treasure Chest
-def effect_TRL_525_deathrattle(game, source, target):
+def effect_TRL_525_deathrattle(game, source):
     """Arena Treasure Chest: Deathrattle: Draw 2 cards."""
     source.controller.draw(2)
 
@@ -82,7 +82,7 @@ def effect_TRL_526_battlecry(game, source, target):
 
 
 # TRL_531 - Rumbletusk Shaker
-def effect_TRL_531_deathrattle(game, source, target):
+def effect_TRL_531_deathrattle(game, source):
     """Rumbletusk Shaker: Deathrattle: Summon a 3/2 Rumbletusk Breaker."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "TRL_531t")

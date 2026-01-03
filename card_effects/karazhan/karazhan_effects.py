@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # KAR_005 - Kindly Grandmother
-def effect_KAR_005_deathrattle(game, source, target):
+def effect_KAR_005_deathrattle(game, source):
     """Kindly Grandmother: Deathrattle: Summon a 3/2 Big Bad Wolf."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "KAR_005a")
@@ -32,7 +32,7 @@ def effect_KAR_009_battlecry(game, source, target):
 
 
 # KAR_029 - Runic Egg
-def effect_KAR_029_deathrattle(game, source, target):
+def effect_KAR_029_deathrattle(game, source):
     """Runic Egg: Deathrattle: Draw a card."""
     source.controller.draw(1)
 
@@ -60,7 +60,7 @@ def effect_KAR_041_battlecry(game, source, target):
         game.destroy(target)
 
 
-def effect_KAR_041_deathrattle(game, source, target):
+def effect_KAR_041_deathrattle(game, source):
     """Moat Lurker: Deathrattle: Resummon the destroyed minion."""
     destroyed_id = getattr(source, '_destroyed_target', None)
     if destroyed_id and len(source.controller.board) < 7:
@@ -102,7 +102,7 @@ def effect_KAR_092_battlecry(game, source, target):
 
 
 # KAR_094 - Deadly Fork
-def effect_KAR_094_deathrattle(game, source, target):
+def effect_KAR_094_deathrattle(game, source):
     """Deadly Fork: Deathrattle: Add a 3/2 Sharp Fork to your hand."""
     from simulator.card_loader import create_card
     fork = create_card("KAR_094a", game)

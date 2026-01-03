@@ -203,6 +203,20 @@ class Game:
         }
         # In a real RL env, this would wait for an action of type CHOOSE_DISCOVER
     
+    def initiate_discover(self, player: Player, options: list, callback: Callable) -> None:
+        """Alias for start_discover with auto-pick for self-play.
+        
+        For self-play training, we auto-pick a random option to keep games flowing.
+        """
+        import random
+        if options:
+            # Auto-pick random option for self-play
+            choice = random.choice(options)
+            try:
+                callback(self, choice)
+            except Exception:
+                pass  # Ignore callback errors in self-play
+    
     def choose_discover(self, choice_idx: int) -> bool:
         """Resolve a pending discover choice."""
         if not self.pending_choices:

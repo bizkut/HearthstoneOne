@@ -35,7 +35,7 @@ def effect_LOOT_132_battlecry(game, source, target):
 
 
 # LOOT_144 - Hoarding Dragon
-def effect_LOOT_144_deathrattle(game, source, target):
+def effect_LOOT_144_deathrattle(game, source):
     """Hoarding Dragon: Deathrattle: Give your opponent two Coins."""
     from simulator.card_loader import create_card
     for _ in range(2):
@@ -53,7 +53,7 @@ def effect_LOOT_152_battlecry(game, source, target):
 
 
 # LOOT_153 - Violet Wurm
-def effect_LOOT_153_deathrattle(game, source, target):
+def effect_LOOT_153_deathrattle(game, source):
     """Violet Wurm: Deathrattle: Summon seven 1/1 Grubs."""
     for _ in range(7):
         if len(source.controller.board) < 7:
@@ -77,7 +77,7 @@ def effect_LOOT_167_battlecry(game, source, target):
 
 
 # LOOT_233 - Cursed Disciple
-def effect_LOOT_233_deathrattle(game, source, target):
+def effect_LOOT_233_deathrattle(game, source):
     """Cursed Disciple: Deathrattle: Summon a 5/1 Revenant."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "LOOT_233t")
@@ -110,7 +110,7 @@ def effect_LOOT_388_battlecry(game, source, target):
 
 
 # LOOT_413 - Plated Beetle
-def effect_LOOT_413_deathrattle(game, source, target):
+def effect_LOOT_413_deathrattle(game, source):
     """Plated Beetle: Deathrattle: Gain 3 Armor."""
     if source.controller.hero:
         source.controller.hero.gain_armor(3)

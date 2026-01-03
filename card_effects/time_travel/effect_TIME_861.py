@@ -1,3 +1,4 @@
+from simulator.enums import CardType
 """Effect for TIME_861 in TIME_TRAVEL"""
 
 

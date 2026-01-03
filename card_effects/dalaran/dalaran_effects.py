@@ -31,7 +31,7 @@ def effect_DAL_086_battlecry(game, source, target):
 
 
 # DAL_088 - Safeguard
-def effect_DAL_088_deathrattle(game, source, target):
+def effect_DAL_088_deathrattle(game, source):
     """Safeguard: Deathrattle: Summon a 0/5 Vault Safe with Taunt."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "DAL_088t2")
@@ -72,7 +72,7 @@ def effect_DAL_560_battlecry(game, source, target):
 
 
 # DAL_566 - Eccentric Scribe
-def effect_DAL_566_deathrattle(game, source, target):
+def effect_DAL_566_deathrattle(game, source):
     """Eccentric Scribe: Deathrattle: Summon four 1/1 Vengeful Scrolls."""
     for _ in range(4):
         if len(source.controller.board) < 7:
@@ -92,7 +92,7 @@ def effect_DAL_735_battlecry(game, source, target):
 
 
 # DAL_743 - Hench-Clan Hogsteed
-def effect_DAL_743_deathrattle(game, source, target):
+def effect_DAL_743_deathrattle(game, source):
     """Hench-Clan Hogsteed: Deathrattle: Summon a 1/1 Murloc."""
     if len(source.controller.board) < 7:
         game.summon_token(source.controller, "DAL_743t")

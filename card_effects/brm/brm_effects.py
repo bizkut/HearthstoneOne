@@ -69,7 +69,7 @@ def effect_BRM_026_battlecry(game, source, target):
 
 
 # BRM_027 - Majordomo Executus
-def effect_BRM_027_deathrattle(game, source, target):
+def effect_BRM_027_deathrattle(game, source):
     """Majordomo Executus: Deathrattle: Replace your hero with Ragnaros the Firelord."""
     # Complex hero replacement - simplified to just summon Ragnaros token
     pass  # Requires hero replacement logic

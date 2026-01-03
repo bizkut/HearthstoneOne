@@ -47,7 +47,7 @@ def effect_EX1_019_battlecry(game, source, target):
 
 
 # EX1_029 - Leper Gnome
-def effect_EX1_029_deathrattle(game, source, target):
+def effect_EX1_029_deathrattle(game, source):
     """Leper Gnome: Deathrattle: Deal 2 damage to the enemy hero."""
     if source.controller.opponent.hero:
         game.deal_damage(source.controller.opponent.hero, 2)
@@ -118,7 +118,7 @@ def effect_EX1_509_trigger(game, source, summon_event):
 
 
 # EX1_556 - Harvest Golem
-def effect_EX1_556_deathrattle(game, source, target):
+def effect_EX1_556_deathrattle(game, source):
     """Harvest Golem: Deathrattle: Summon a 2/1 Damaged Golem."""
     game.summon_token(source.controller, "skele21")
 

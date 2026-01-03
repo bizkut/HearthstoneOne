@@ -1,3 +1,4 @@
+from simulator.enums import CardType
 """Effect for VAC_408 in ISLAND_VACATION"""
 
 

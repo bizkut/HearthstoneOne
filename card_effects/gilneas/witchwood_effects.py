@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # GIL_118 - Deranged Doctor
-def effect_GIL_118_deathrattle(game, source, target):
+def effect_GIL_118_deathrattle(game, source):
     """Deranged Doctor: Deathrattle: Restore 8 Health to your hero."""
     if source.controller.hero:
         game.heal(source.controller.hero, 8)
@@ -51,7 +51,7 @@ def effect_GIL_213_battlecry(game, source, target):
 
 
 # GIL_513 - Lost Spirit
-def effect_GIL_513_deathrattle(game, source, target):
+def effect_GIL_513_deathrattle(game, source):
     """Lost Spirit: Deathrattle: Give your minions +1 Attack."""
     for m in source.controller.board:
         m._attack += 1
@@ -76,7 +76,7 @@ def effect_GIL_534_trigger(game, source, attack_event):
 
 
 # GIL_667 - Rotten Applebaum
-def effect_GIL_667_deathrattle(game, source, target):
+def effect_GIL_667_deathrattle(game, source):
     """Rotten Applebaum: Deathrattle: Restore 4 Health to your hero."""
     if source.controller.hero:
         game.heal(source.controller.hero, 4)
@@ -90,7 +90,7 @@ def effect_GIL_683_battlecry(game, source, target):
 
 
 # GIL_816 - Swamp Dragon Egg
-def effect_GIL_816_deathrattle(game, source, target):
+def effect_GIL_816_deathrattle(game, source):
     """Swamp Dragon Egg: Deathrattle: Add a random Dragon to your hand."""
     from simulator.card_loader import CardDatabase, create_card
     from simulator.enums import Race

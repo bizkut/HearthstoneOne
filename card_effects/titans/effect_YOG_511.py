@@ -1,3 +1,4 @@
+from simulator.enums import CardType
 """Effect for YOG_511 in TITANS"""
 
 

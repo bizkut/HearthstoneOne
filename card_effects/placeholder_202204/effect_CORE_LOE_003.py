@@ -1,3 +1,4 @@
+from simulator.enums import CardType
 """Effect for CORE_LOE_003 in PLACEHOLDER_202204"""
 
 def battlecry(game, source, target):

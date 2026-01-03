@@ -60,6 +60,11 @@ class Player(Entity):
         self.minions_played_this_game_list: List[str] = []
         self.dead_minions: List[str] = []  # Graveyard (card IDs)
         self.cards_drawn_this_game: List[str] = []
+        
+        # Last Turn Stats (for Elementals etc)
+        self.cards_played_last_turn: int = 0
+        self.minions_played_last_turn: int = 0
+        self.spells_played_last_turn: int = 0
 
     def clone(self) -> 'Player':
         """Create a deep copy of the player (excluding entities managed by Game.clone)."""
@@ -375,6 +380,11 @@ class Player(Entity):
             self.hero.exhausted = False
             self.hero.attacks_this_turn = 0
         
+        # Update last turn stats
+        self.cards_played_last_turn = self.cards_played_this_turn
+        self.minions_played_last_turn = self.minions_played_this_turn
+        self.spells_played_last_turn = self.spells_played_this_turn
+
         # Reset counters
         self.cards_played_this_turn = 0
         self.minions_played_this_turn = 0

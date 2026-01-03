@@ -13,7 +13,7 @@ def effect_GVG_069_battlecry(game, source, target):
 
 
 # GVG_076 - Explosive Sheep
-def effect_GVG_076_deathrattle(game, source, target):
+def effect_GVG_076_deathrattle(game, source):
     """Explosive Sheep: Deathrattle: Deal 2 damage to all minions."""
     for p in game.players:
         for m in p.board[:]:
@@ -35,7 +35,7 @@ def effect_GVG_090_battlecry(game, source, target):
 
 
 # GVG_096 - Piloted Shredder
-def effect_GVG_096_deathrattle(game, source, target):
+def effect_GVG_096_deathrattle(game, source):
     """Piloted Shredder: Deathrattle: Summon a random 2-Cost minion."""
     from simulator.card_loader import CardDatabase
     from simulator.enums import CardType
@@ -54,7 +54,7 @@ def effect_GVG_096_deathrattle(game, source, target):
 
 
 # GVG_082 - Clockwork Gnome
-def effect_GVG_082_deathrattle(game, source, target):
+def effect_GVG_082_deathrattle(game, source):
     """Clockwork Gnome: Deathrattle: Add a Spare Part card to your hand."""
     spare_parts = [
         "PART_001",  # Armor Plating
@@ -71,7 +71,7 @@ def effect_GVG_082_deathrattle(game, source, target):
 
 
 # GVG_078 - Mechanical Yeti
-def effect_GVG_078_deathrattle(game, source, target):
+def effect_GVG_078_deathrattle(game, source):
     """Mechanical Yeti: Deathrattle: Give each player a Spare Part."""
     spare_parts = [
         "PART_001", "PART_002", "PART_003", "PART_004",

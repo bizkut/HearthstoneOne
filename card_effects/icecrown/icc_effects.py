@@ -6,7 +6,7 @@ import random
 # === MINIONS ===
 
 # ICC_019 - Skelemancer
-def effect_ICC_019_deathrattle(game, source, target):
+def effect_ICC_019_deathrattle(game, source):
     """Skelemancer: Deathrattle: If it's your opponent's turn, summon an 8/8 Skeleton."""
     if game.current_player == source.controller.opponent:
         if len(source.controller.board) < 7:
@@ -51,7 +51,7 @@ def effect_ICC_031_trigger(game, source, damage_event):
 
 
 # ICC_067 - Vryghoul
-def effect_ICC_067_deathrattle(game, source, target):
+def effect_ICC_067_deathrattle(game, source):
     """Vryghoul: Deathrattle: If it's your opponent's turn, summon a 2/2 Ghoul."""
     if game.current_player == source.controller.opponent:
         if len(source.controller.board) < 7:

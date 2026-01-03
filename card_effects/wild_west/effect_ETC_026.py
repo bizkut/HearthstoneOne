@@ -1,3 +1,4 @@
+from simulator.enums import CardType
 """Effect for ETC_026 in WILD_WEST"""
 
 
