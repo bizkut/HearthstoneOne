@@ -36,3 +36,12 @@ runs/
 
 # Config (local)
 config.local.yaml
+
+# Card data (large JSON files)
+data/*.json
+
+# Training run outputs
+models/run_*/
+
+# Reference codebases
+references/
