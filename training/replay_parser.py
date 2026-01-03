@@ -404,13 +404,33 @@ def extract_training_pairs(replays: List[ParsedReplay]) -> List[Dict]:
 
 if __name__ == "__main__":
     import argparse
+    from pathlib import Path
     
-    parser = argparse.ArgumentParser(description='Parse HSReplay files')
-    parser.add_argument('directory', help='Directory containing .xml replay files')
-    parser.add_argument('--max-files', type=int, default=100, help='Max files to parse')
-    parser.add_argument('--output', type=str, default='replay_data.json', help='Output file')
+    def parse_replay_directory(directory: str, max_files: int) -> List[ParsedReplay]:
+        """Parse all XML files in a directory."""
+        parser = HSReplayParser()
+        replays = []
+        
+        xml_files = list(Path(directory).glob('*.xml'))[:max_files]
+        print(f"Found {len(xml_files)} XML files in {directory}")
+        
+        for xml_file in xml_files:
+            print(f"  Parsing {xml_file.name}...", end=' ')
+            replay = parser.parse_file(str(xml_file))
+            if replay:
+                replays.append(replay)
+                print(f"OK ({len(replay.turns)} turns)")
+            else:
+                print("FAILED")
+        
+        return replays
     
-    args = parser.parse_args()
+    arg_parser = argparse.ArgumentParser(description='Parse HSReplay files')
+    arg_parser.add_argument('directory', help='Directory containing .xml replay files')
+    arg_parser.add_argument('--max-files', type=int, default=100, help='Max files to parse')
+    arg_parser.add_argument('--output', type=str, default='replay_data.json', help='Output file')
+    
+    args = arg_parser.parse_args()
     
     replays = parse_replay_directory(args.directory, args.max_files)
     pairs = extract_training_pairs(replays)
@@ -421,13 +441,10 @@ if __name__ == "__main__":
     summary = {
         'num_replays': len(replays),
         'num_pairs': len(pairs),
-        'sample_pairs': [
-            {'state': p[0], 'action': {'type': p[1].action_type, 'card_id': p[1].card_id}}
-            for p in pairs[:10]
-        ]
+        'pairs': pairs  # Save actual pairs for training
     }
     
     with open(args.output, 'w') as f:
         json.dump(summary, f, indent=2)
     
-    print(f"Summary saved to {args.output}")
+    print(f"Data saved to {args.output}")
