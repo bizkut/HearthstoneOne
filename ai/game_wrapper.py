@@ -14,6 +14,7 @@ import random
 from .game_state import GameState
 from .actions import Action, ActionType, ACTION_SPACE_SIZE
 from .card import CardInstance
+from .mulligan_policy import MulliganPolicy, MulliganEncoder
 
 from simulator import Game, Player, CardDatabase, create_card, Hero, CardType, CardData
 
@@ -28,11 +29,13 @@ BASIC_WARRIOR_DECK = BASIC_DECKS["basic_warrior"]
 class HearthstoneGame:
     """Wrapper around Universal Simulator for RL-style game interface."""
     
-    def __init__(self, perspective: int = 1):
+    def __init__(self, perspective: int = 1, mulligan_policy: Optional[MulliganPolicy] = None):
         self.perspective = perspective
         self._game: Optional[Game] = None
         self._step_count = 0
         self._max_steps = 200
+        self.mulligan_policy = mulligan_policy
+        self.mulligan_encoder = MulliganEncoder() if mulligan_policy else None
         CardDatabase.get_instance().load() # Ensure cards are loaded
     
     @property
@@ -72,6 +75,7 @@ class HearthstoneGame:
         randomize_first: bool = True,
         use_meta_decks: bool = False,
         do_mulligan: bool = True,
+        use_learned_mulligan: bool = False,
     ) -> GameState:
         """
         Reset game with proper deck support.
@@ -162,14 +166,60 @@ class HearthstoneGame:
         self._game.start_mulligan()
         
         if do_mulligan:
-            # Heuristic mulligan: keep cards with cost <= 3
-            self._heuristic_mulligan(p1)
-            self._heuristic_mulligan(p2)
+            if use_learned_mulligan and self.mulligan_policy:
+                # Use learned mulligan policy
+                self._learned_mulligan(p1, p2)
+            else:
+                # Heuristic mulligan: keep cards with cost <= 3
+                self._heuristic_mulligan(p1)
+                self._heuristic_mulligan(p2)
         else:
             self._game.skip_mulligan()
         
         self._step_count = 0
         return self.get_state()
+    
+    def _learned_mulligan(self, p1: Player, p2: Player):
+        """Use learned mulligan policy for both players."""
+        if not self.mulligan_policy or not self.mulligan_encoder:
+            return self._heuristic_mulligan(p1), self._heuristic_mulligan(p2)
+        
+        import torch
+        
+        # Get opponent class indices (assume from hero card_id)
+        p1_class = self._get_class_index(p1.hero.card_id if p1.hero else "HERO_08")
+        p2_class = self._get_class_index(p2.hero.card_id if p2.hero else "HERO_01")
+        
+        # P1 mulligan
+        decisions = self.mulligan_policy.get_mulligan_decision(
+            p1.hand, opponent_class=p2_class, player_class=p1_class
+        )
+        cards_to_replace = [c for i, c in enumerate(p1.hand) if i < len(decisions) and not decisions[i]]
+        self._game.do_mulligan(p1, cards_to_replace)
+        
+        # P2 mulligan
+        decisions = self.mulligan_policy.get_mulligan_decision(
+            p2.hand, opponent_class=p1_class, player_class=p2_class
+        )
+        cards_to_replace = [c for i, c in enumerate(p2.hand) if i < len(decisions) and not decisions[i]]
+        self._game.do_mulligan(p2, cards_to_replace)
+    
+    def _get_class_index(self, hero_id: str) -> int:
+        """Map hero ID to class index."""
+        class_map = {
+            "HERO_01": 0,  # Warrior
+            "HERO_02": 1,  # Shaman
+            "HERO_03": 2,  # Rogue
+            "HERO_04": 3,  # Paladin
+            "HERO_05": 4,  # Hunter
+            "HERO_06": 5,  # Druid
+            "HERO_07": 6,  # Warlock
+            "HERO_08": 7,  # Mage
+            "HERO_09": 8,  # Priest
+            "HERO_10": 9,  # Death Knight
+            "HERO_11": 10, # Demon Hunter
+        }
+        return class_map.get(hero_id[:7], 0)
     
     def _heuristic_mulligan(self, player: Player):
         """Simple mulligan: throw back cards that cost > 3."""

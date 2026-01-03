@@ -30,10 +30,12 @@ try:
     from ai.model import HearthstoneModel
     from ai.mcts import MCTS
     from ai.device import get_best_device
+    from ai.mulligan_policy import MulliganPolicy, MulliganEncoder
     AI_AVAILABLE = True
 except ImportError as e:
     print(f"[WARNING] AI modules not available: {e}")
     AI_AVAILABLE = False
+    MulliganPolicy = None  # type: ignore
 
 # WebSocket imports
 try:
@@ -198,6 +200,8 @@ class WebSocketServer:
         # AI model (shared)
         self.model = None
         self.encoder = None
+        self.mulligan_policy = None
+        self.mulligan_encoder = None
         self._load_model()
     
     def _load_model(self):
@@ -221,11 +225,51 @@ class WebSocketServer:
                 self.model.to(device)
                 self.model.eval()
                 print(f"[WebSocketServer] Model loaded from {self.model_path}")
+                
+                # Try to load mulligan policy
+                self._load_mulligan_policy()
+                
             except Exception as e:
                 print(f"[WebSocketServer] Failed to load model: {e}")
                 self.model = None
         else:
             print("[WebSocketServer] No model path provided, using heuristic")
+    
+    def _load_mulligan_policy(self):
+        """Load mulligan policy if available."""
+        if not AI_AVAILABLE or MulliganPolicy is None:
+            return
+        
+        mulligan_path = self.model_path.replace('best_model.pt', 'mulligan_policy.pt')
+        if os.path.exists(mulligan_path):
+            try:
+                self.mulligan_encoder = MulliganEncoder()
+                self.mulligan_policy = MulliganPolicy()
+                checkpoint = torch.load(mulligan_path, weights_only=False)
+                self.mulligan_policy.load_state_dict(checkpoint['model_state_dict'])
+                self.mulligan_policy.eval()
+                print(f"[WebSocketServer] Mulligan policy loaded from {mulligan_path}")
+            except Exception as e:
+                print(f"[WebSocketServer] Failed to load mulligan policy: {e}")
+                self.mulligan_policy = None
+        else:
+            # Initialize fresh policy (heuristic fallback)
+            self.mulligan_encoder = MulliganEncoder()
+            self.mulligan_policy = MulliganPolicy()
+            print("[WebSocketServer] Mulligan policy initialized (untrained)")
+    
+    def _get_mulligan_suggestion(self, hand_cards: list, opponent_class: int, player_class: int) -> dict:
+        """Get mulligan suggestion for hand."""
+        if not self.mulligan_policy or not self.mulligan_encoder:
+            # Heuristic fallback
+            keep_probs = [1.0 if c.get('cost', 10) <= 3 else 0.0 for c in hand_cards]
+            return {"keep_probabilities": keep_probs, "using_heuristic": True}
+        
+        # Use learned policy
+        decisions = self.mulligan_policy.get_mulligan_decision(
+            hand_cards, opponent_class, player_class
+        )
+        return {"keep_probabilities": [1.0 if d else 0.0 for d in decisions], "using_heuristic": False}
     
     async def handle_client(self, websocket):
         """Handle a WebSocket client connection."""
@@ -281,6 +325,21 @@ class WebSocketServer:
                 await websocket.send(json.dumps({
                     "type": "status",
                     "reset": True
+                }))
+            
+            elif msg_type == "request_mulligan":
+                # Get mulligan suggestion
+                hand_cards = data.get("hand_cards", [])
+                opponent_class = data.get("opponent_class", 0)
+                player_class = data.get("player_class", 0)
+                
+                mulligan_result = await asyncio.to_thread(
+                    self._get_mulligan_suggestion,
+                    hand_cards, opponent_class, player_class
+                )
+                await websocket.send(json.dumps({
+                    "type": "mulligan",
+                    **mulligan_result
                 }))
                 
         except json.JSONDecodeError:
