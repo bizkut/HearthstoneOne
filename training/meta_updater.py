@@ -44,13 +44,41 @@ class HSReplayFetcher:
         Returns:
             List of deck dictionaries with archetype and card list
         """
-        # Placeholder: In production, this would call HSReplay API
-        # https://hsreplay.net/api/v1/archetypes/
+        # Try to fetch from real API if possible, with mock fallback
+        try:
+            import urllib.request
+            import urllib.error
+            
+            url = "https://hsreplay.net/api/v1/archetypes/"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            
+            req = urllib.request.Request(url, headers=headers)
+            with urllib.request.urlopen(req, timeout=10) as response:
+                if response.status == 200:
+                    data = json.loads(response.read().decode('utf-8'))
+                    print(f"[MetaUpdater] Successfully fetched {len(data)} archetypes from HSReplay")
+                    
+                    # Convert to our format
+                    decks = []
+                    for arch in data:
+                        # Extract class and name
+                        player_class = arch.get('player_class_name', 'UNKNOWN')
+                        name = arch.get('name', 'Unknown Deck')
+                        # Map HSReplay archetype to our DeckArchetype enum if possible
+                        # For now, just store raw data
+                        decks.append({
+                            'name': name,
+                            'class': player_class,
+                            'archetype_id': arch.get('id'),
+                            'url': arch.get('url')
+                        })
+                    return decks[:limit]
+        except Exception as e:
+            print(f"[MetaUpdater] Live fetch failed ({e}), using mock data")
         
-        print(f"[MetaUpdater] Would fetch top {limit} {rank_range} decks from last {time_range}")
-        print("[MetaUpdater] Note: HSReplay API integration requires API key")
-        
-        # Return mock data for testing
+        # Return mock data for testing/fallback
         return self._get_mock_decks(limit)
     
     def _get_mock_decks(self, limit: int) -> List[Dict]:
