@@ -1,265 +1,198 @@
 # 🃏 HearthstoneOne
 
-> **Assistant IA pour Hearthstone** — Coaching en temps réel + Entraînement AlphaZero
+> **AI Assistant for Hearthstone** — Real-time coaching + AlphaZero training + HSTracker integration
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
+![CUDA](https://img.shields.io/badge/CUDA-12.2-76B900?style=for-the-badge&logo=nvidia&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 ---
 
-## ✨ Qu'est-ce que HearthstoneOne ?
+## ✨ Features
 
-HearthstoneOne est un écosystème complet d'Intelligence Artificielle pour Hearthstone :
-
-- 🧠 **IA AlphaZero** — Apprend à jouer de zéro via self-play (MCTS + Deep Learning)
-- 👁️ **Overlay Temps Réel** — Affiche les meilleurs coups par-dessus le jeu
-- � **Simulateur Universel** — Supporte toutes les cartes modernes (généré par LLM)
-- 📊 **Analyse de Parties** — Parse les logs Hearthstone en direct
-
----
-
-## 🏗️ Architecture
-
-```mermaid
-flowchart TB
-    subgraph GAME["🎮 Hearthstone"]
-        Client[Client Hearthstone]
-        Log[Power.log]
-        Client --> Log
-    end
-
-    subgraph ENGINE["⚙️ HearthstoneOne Engine"]
-        subgraph RUNTIME["Runtime"]
-            Watcher[LogWatcher]
-            Parser[Parser]
-            Watcher --> Parser
-        end
-
-        subgraph CORE["Core"]
-            Sim[Simulator]
-            Parser --> Sim
-        end
-
-        subgraph AI["Intelligence Artificielle"]
-            Encoder[Encoder]
-            Model[Neural Network]
-            MCTS[MCTS]
-            Sim --> Encoder
-            Encoder --> Model
-            Model --> MCTS
-        end
-
-        subgraph UI["Interface"]
-            Overlay[Overlay Window]
-            MCTS --> Overlay
-        end
-    end
-
-    Log --> Watcher
-    Overlay --> Client
-
-    style Model fill:#f9f,stroke:#333,stroke-width:2px
-    style Sim fill:#bbf,stroke:#333,stroke-width:2px
-    style Overlay fill:#bfb,stroke:#333,stroke-width:2px
-```
+| Feature | Description |
+|---------|-------------|
+| 🧠 **AlphaZero AI** | Self-play training with MCTS + Deep Learning |
+| 🤖 **Transformer Model** | Attention-based architecture for card synergies |
+| 👁️ **Real-Time Overlay** | Arrow indicators for suggested plays |
+| 🔌 **HSTracker Integration** | WebSocket bridge for seamless connectivity |
+| 🎯 **Mulligan Assistant** | Learned policy for keep/replace decisions |
+| 📊 **HSReplay Training** | Learn from human games via behavior cloning |
 
 ---
 
-## 🧠 AlphaZero : Le Cerveau
+## 🐳 Quick Start (Docker)
 
-L'IA utilise l'algorithme **AlphaZero** de DeepMind, adapté à Hearthstone.
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/)
+- [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) (for GPU)
 
-### Cycle d'Apprentissage
-
-```mermaid
-flowchart LR
-    A[🎮 Self-Play] --> B[💾 Replay Buffer]
-    B --> C[🏋️ Training]
-    C --> D[🧠 Neural Net]
-    D --> A
-
-    style D fill:#f9f,stroke:#333
-```
-
-| Composant | Description |
-|-----------|-------------|
-| **Self-Play** | L'IA joue contre elle-même pour générer des données |
-| **Replay Buffer** | Stocke les trajectoires (état, action, résultat) |
-| **Training** | Entraîne le réseau sur les données collectées |
-| **Neural Net** | Prédit la politique (meilleur coup) et la valeur (qui gagne) |
-
-### Réseau de Neurones
-
-```mermaid
-flowchart LR
-    Input["État du Jeu<br/>(690 dimensions)"] --> Hidden["Couches Cachées<br/>(512 → 256)"]
-    Hidden --> Policy["Policy Head<br/>(probabilités)"]
-    Hidden --> Value["Value Head<br/>(-1 à +1)"]
-
-    style Policy fill:#ffa,stroke:#333
-    style Value fill:#afa,stroke:#333
-```
-
----
-
-## 👁️ Live Assistant
-
-L'overlay affiche les suggestions en temps réel par-dessus Hearthstone.
-
-### Pipeline de Données
-
-```mermaid
-sequenceDiagram
-    participant HS as Hearthstone
-    participant LW as LogWatcher
-    participant P as Parser
-    participant S as Simulator
-    participant AI as IA
-    participant O as Overlay
-
-    HS->>LW: Écrit Power.log
-    LW->>P: Nouvelle ligne
-    P->>S: Met à jour l'état
-    S->>AI: État encodé
-    AI->>O: Meilleur coup
-    O->>HS: Affiche flèche
-```
-
-### Fonctionnalités
-
-| Suggestion | Visuel |
-|------------|--------|
-| Jouer une carte (avec cible) | 🟢 Flèche verte |
-| Jouer une carte (sans cible) | 🟡 Cercle doré |
-| Attaquer (créature → cible) | 🟢 Flèche verte |
-| Pouvoir Héroïque | ⏳ À venir |
-| Activer un Lieu | ⏳ À venir |
-
----
-
-## 🚀 Installation
-
-### Prérequis
-
-- Python 3.10+
-- Hearthstone installé
-- CUDA (optionnel, pour GPU)
-
-### Étapes
-
+### 1. Start the WebSocket Server
 ```bash
-# 1. Cloner
+# Start inference server with GPU
+docker compose up -d
+
+# Check logs
+docker compose logs -f server
+```
+
+The server runs on `ws://localhost:9876` and connects to HSTracker.
+
+### 2. Train the AI
+
+**Option A: Self-Play (MLP Model)**
+```bash
+docker compose run train
+```
+
+**Option B: Imitation Learning (Transformer)**
+```bash
+# Step 1: Parse HSReplay files
+mkdir -p data/replays
+# Copy your .xml replay files to data/replays/
+
+docker compose run parser
+
+# Step 2: Train on parsed data
+docker compose run imitation
+```
+
+### 3. Stop Everything
+```bash
+docker compose down
+```
+
+---
+
+## 💻 Local Development
+
+### Installation
+```bash
+# Clone
 git clone https://github.com/Kevzi/-HearthstoneOne.git
 cd HearthstoneOne
 
-# 2. Installer les dépendances
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+
+# Install dependencies
 pip install -r requirements.txt
+```
 
-# 3. Configurer les logs Hearthstone
-# Créer le fichier : C:\Users\VOUS\AppData\Local\Blizzard\Hearthstone\log.config
-# Contenu :
-# [Power]
-# LogLevel=1
-# FilePrinting=true
-# ConsolePrinting=true
-# ScreenPrinting=false
+### Run WebSocket Server
+```bash
+python runtime/websocket_server.py --host localhost --port 9876 --model models/best_model.pt
+```
+
+### Train Models
+```bash
+# MLP (AlphaZero self-play)
+python training/trainer.py --epochs 100 --output models/
+
+# Transformer (behavior cloning)
+python training/imitation_trainer.py --data data/replays.json --epochs 50 --output models/transformer_model.pt
+
+# Test with dummy data
+python training/imitation_trainer.py --dummy --epochs 10
 ```
 
 ---
 
-## 📖 Utilisation
+## 🔗 HSTracker Integration
 
-### Lancer l'Assistant Live
+HearthstoneOne integrates with [HSTracker](https://github.com/HearthSim/HSTracker) via WebSocket:
 
-```bash
-python runtime/live_assistant.py
-```
+1. **Start the Python server** (Docker or local)
+2. **HSTracker connects automatically** and streams Power.log
+3. **AI suggestions appear** in the overlay with arrow indicators
 
-Puis lancez Hearthstone et commencez une partie. L'overlay apparaîtra automatiquement.
+### Message Protocol
+```javascript
+// Client → Server
+{ "type": "log", "line": "..." }
+{ "type": "request_suggestion" }
+{ "type": "request_mulligan", "hand_cards": [...], "opponent_class": 2 }
 
-### Entraîner l'IA
-
-```bash
-python training/trainer.py
-```
-
-### Évaluer le Modèle
-
-```bash
-python evaluation.py
+// Server → Client
+{ "type": "suggestion", "action": "play_card", "card_id": "...", "win_probability": 0.65 }
+{ "type": "mulligan", "keep_probabilities": [0.9, 0.2, 0.8] }
 ```
 
 ---
 
-## 📂 Structure du Projet
+## 📁 Project Structure
 
 ```
 HearthstoneOne/
-├── ai/                    # 🧠 Intelligence Artificielle
-│   ├── model.py           #    Réseau de neurones
-│   ├── mcts.py            #    Monte Carlo Tree Search
-│   ├── encoder.py         #    Encodage état → tenseur
-│   └── replay_buffer.py   #    Stockage trajectoires
+├── ai/                        # 🧠 AI Models
+│   ├── model.py               # MLP policy/value network
+│   ├── transformer_model.py   # Transformer with self-attention
+│   ├── mcts.py                # Monte Carlo Tree Search
+│   ├── encoder.py             # State encoding (690 dims)
+│   ├── mulligan_policy.py     # Mulligan decision network
+│   └── game_wrapper.py        # Simulator interface
 │
-├── simulator/             # 🎮 Moteur de Jeu
-│   ├── game.py            #    Logique de partie
-│   ├── player.py          #    Gestion joueur
-│   ├── entities.py        #    Cartes, Serviteurs, Héros
-│   └── factory.py         #    Création dynamique
+├── training/                  # 🏋️ Training Scripts
+│   ├── trainer.py             # AlphaZero self-play
+│   ├── imitation_trainer.py   # Behavior cloning
+│   ├── replay_parser.py       # HSReplay XML parser
+│   └── mulligan_trainer.py    # Mulligan policy training
 │
-├── runtime/               # 👁️ Interface Temps Réel
-│   ├── live_assistant.py  #    Orchestrateur principal
-│   ├── log_watcher.py     #    Surveillance Power.log
-│   └── parser.py          #    Décodage des logs
+├── runtime/                   # 🔌 Runtime Services
+│   ├── websocket_server.py    # WebSocket API
+│   ├── parser.py              # Power.log parser
+│   └── log_watcher.py         # File watcher
 │
-├── overlay/               # 🖥️ Interface Graphique
-│   ├── overlay_window.py  #    Fenêtre transparente
-│   └── geometry.py        #    Calcul positions écran
+├── simulator/                 # 🎮 Game Engine
+│   ├── game.py                # Game state
+│   ├── player.py              # Player logic
+│   └── entities.py            # Cards, Minions, Heroes
 │
-├── training/              # 🏋️ Entraînement
-│   ├── trainer.py         #    Boucle d'entraînement
-│   └── data_collector.py  #    Collecte self-play
+├── HSTracker/                 # 📱 Swift Client (macOS)
+│   └── HearthstoneOne/        # WebSocket client + overlay
 │
-└── docs/                  # 📚 Documentation
-    └── TASKS.md           #    Feuille de route
+├── Dockerfile                 # 🐳 CUDA 12.2 container
+├── docker-compose.yml         # Multi-service orchestration
+└── requirements.txt           # Python dependencies
 ```
 
 ---
 
-## �️ Technologies
+## 🧠 Model Architectures
 
-| Catégorie | Technologie | Usage |
-|-----------|-------------|-------|
-| **Core** | Python 3.10+ | Langage principal |
-| **ML** | PyTorch 2.0+ | Réseaux de neurones |
-| **GUI** | PyQt6 | Overlay transparent |
-| **Data** | hearthstone_data | Base de données cartes |
+### MLP (HearthstoneModel)
+- Input: 690-dimensional game state vector
+- Hidden: 512 → 256 neurons
+- Output: Policy (action probs) + Value (-1 to +1)
 
----
-
-## 🗺️ Roadmap
-
-- [x] Simulateur de base
-- [x] Parser de logs
-- [x] Overlay graphique
-- [x] Suggestions de cartes
-- [x] Suggestions d'attaques
-- [x] Pouvoir Héroïque (24 pouvoirs: basic + upgraded + hero cards)
-- [x] Lieux (Locations)
-- [x] Intégration IA entraînée (MCTS + Neural Network)
-- [x] Secrets (12 secrets: Mage, Hunter, Paladin, Rogue)
-- [x] 404+ effets de cartes (Classic → Scholomance)
-- [ ] Multi-suggestions (plusieurs flèches)
+### Transformer (CardTransformer)
+- Input: Sequence of card embeddings
+- 4 attention layers, 4 heads, 128 hidden dim
+- Self-attention learns card relationships
+- ~1M parameters, fast inference on Pascal GPUs
 
 ---
 
-## 📜 Licence
+## 🖥️ Hardware Compatibility
 
-MIT License — Voir [LICENSE](LICENSE)
+| GPU | Training | Inference |
+|-----|----------|-----------|
+| **Pascal (GTX 1080)** | ✅ | ✅ Fast |
+| **Turing (RTX 2080)** | ✅ | ✅ Fast |
+| **Ampere (RTX 3090)** | ✅ | ✅ Very Fast |
+| **Apple Silicon (MPS)** | ✅ (with fallback) | ✅ |
+| **CPU** | ✅ Slow | ✅ |
+
+---
+
+## 📜 License
+
+MIT License — See [LICENSE](LICENSE)
 
 ---
 
 <p align="center">
-  <b>HearthstoneOne</b> — Projet open-source pour la recherche et l'éducation.
+  <b>HearthstoneOne</b> — Open-source AI for research and education.
 </p>
