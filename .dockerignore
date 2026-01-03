@@ -1,0 +1,52 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.venv
+venv/
+env/
+.eggs
+*.egg-info
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# macOS
+.DS_Store
+
+# HSTracker (Swift - not needed in container)
+HSTracker/
+
+# Build artifacts
+build/
+dist/
+*.egg
+
+# Test files
+tests/
+pytest_cache/
+.coverage
+
+# Documentation
+docs/
+*.md
+!README.md
+!TRAINING.md
+
+# Local models and data (mounted as volumes)
+models/
+data/
+logs/
+
+# Temp files
+*.log
+*.tmp
