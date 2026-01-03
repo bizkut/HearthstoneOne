@@ -49,6 +49,7 @@
 
 ## Phase 7: Overlay & Live Game 🔜
 - [x] `runtime/log_watcher.py` (Parser le Power.log du vrai jeu)
-- [ ] `runtime/parser.py` (Convertir Logs -> Simulator Actions)
+- [x] `runtime/parser.py` (Convertir Logs -> Simulator Actions) - *Base fonctionnelle (Zones)*
+- [ ] `runtime/parser.py` (Parsing Avancé: Attaques, Dégâts, Secrets)
 - [ ] `overlay/overlay_window.py` (Fenêtre transparente)
 - [ ] Intégration IA en temps réel (Inférence ONNX)
