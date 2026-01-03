@@ -103,11 +103,13 @@ class CardTransformer(nn.Module):
                  num_heads: int = 4,
                  num_layers: int = 4,
                  action_dim: int = 200,
-                 dropout: float = 0.1):
+                 dropout: float = 0.1,
+                 num_archetypes: int = 6):
         super().__init__()
         
         self.hidden_dim = hidden_dim
         self.action_dim = action_dim
+        self.num_archetypes = num_archetypes
         
         # Card embedding
         self.card_embedding = CardEmbedding(
@@ -115,6 +117,9 @@ class CardTransformer(nn.Module):
             card_id_dim=64,
             hidden_dim=hidden_dim
         )
+        
+        # Archetype embedding (Phase 7: Meta-Aware)
+        self.archetype_embedding = nn.Embedding(num_archetypes, hidden_dim)
         
         # Positional encoding
         self.pos_encoding = PositionalEncoding(hidden_dim)
@@ -150,7 +155,8 @@ class CardTransformer(nn.Module):
     def forward(self,
                 card_ids: torch.Tensor,        # [batch, seq_len]
                 card_features: torch.Tensor,   # [batch, seq_len, 11]
-                attention_mask: Optional[torch.Tensor] = None  # [batch, seq_len]
+                attention_mask: Optional[torch.Tensor] = None,  # [batch, seq_len]
+                archetype_id: Optional[torch.Tensor] = None     # [batch] - Phase 7 Meta-Aware
                ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward pass.
@@ -159,6 +165,7 @@ class CardTransformer(nn.Module):
             card_ids: Card ID indices [batch, seq_len]
             card_features: Card features [batch, seq_len, 11]
             attention_mask: Mask for padding [batch, seq_len], True = valid
+            archetype_id: Optional opponent archetype index [batch] (0-5)
             
         Returns:
             policy: Action probabilities [batch, action_dim]
@@ -173,6 +180,12 @@ class CardTransformer(nn.Module):
         cls_tokens = self.cls_token.expand(batch_size, -1, -1)  # [batch, 1, hidden_dim]
         x = torch.cat([cls_tokens, x], dim=1)  # [batch, seq_len+1, hidden_dim]
         
+        # Add archetype embedding as additional token if provided (Phase 7)
+        if archetype_id is not None:
+            archetype_embed = self.archetype_embedding(archetype_id)  # [batch, hidden_dim]
+            archetype_embed = archetype_embed.unsqueeze(1)  # [batch, 1, hidden_dim]
+            x = torch.cat([x, archetype_embed], dim=1)  # [batch, seq_len+2, hidden_dim]
+        
         # Add positional encoding
         x = self.pos_encoding(x)
         
@@ -181,6 +194,10 @@ class CardTransformer(nn.Module):
             # Add mask for CLS token (always valid)
             cls_mask = torch.ones(batch_size, 1, device=attention_mask.device, dtype=torch.bool)
             attention_mask = torch.cat([cls_mask, attention_mask], dim=1)
+            # Add mask for archetype token if present
+            if archetype_id is not None:
+                arch_mask = torch.ones(batch_size, 1, device=attention_mask.device, dtype=torch.bool)
+                attention_mask = torch.cat([attention_mask, arch_mask], dim=1)
             # Invert: transformer expects True = ignored
             src_key_padding_mask = ~attention_mask
         else:
