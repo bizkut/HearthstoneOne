@@ -45,6 +45,7 @@ class NativeLiveAssistant:
         # Flags
         self._running = True
         self._needs_update = False
+        self._pending_resize = None  # Thread-safe resize queue
         
     def start(self):
         """Start the assistant."""
@@ -80,6 +81,14 @@ class NativeLiveAssistant:
                 if self._needs_update:
                     self._update_suggestions()
                     self._needs_update = False
+                
+                # Process pending resize (from window tracker thread)
+                if self._pending_resize:
+                    w, h, x, y = self._pending_resize
+                    self._pending_resize = None
+                    self.geometry.resize(w, h)
+                    if self.overlay and self.overlay.window:
+                        self.overlay.resize(w, h, x, y)
                     
         except KeyboardInterrupt:
             print("\n[NativeAssistant] Shutting down...")
@@ -98,12 +107,11 @@ class NativeLiveAssistant:
         while self._running:
             try:
                 rect = find_hearthstone_window()
-                if rect and self.overlay and self.overlay.window:
-                    # Update overlay position to match Hearthstone
-                    self.geometry.resize(rect.width, rect.height)
-                    self.overlay.resize(rect.width, rect.height, rect.x, rect.y)
+                if rect:
+                    # Queue resize for main thread (thread-safe)
+                    self._pending_resize = (rect.width, rect.height, rect.x, rect.y)
             except Exception as e:
-                pass
+                pass  # Window not found, continue
             time.sleep(0.5)
     
     def _update_suggestions(self):

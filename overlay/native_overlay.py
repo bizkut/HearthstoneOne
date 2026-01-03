@@ -268,11 +268,13 @@ class NativeOverlayWindow:
     def resize(self, width: int, height: int, x: int = 0, y: int = 0):
         """Resize and reposition window."""
         if self.window:
-            # macOS uses bottom-left origin, we need to flip y
-            screen_height = NSApplication.sharedApplication().mainMenu().menuBarHeight()
-            # Just use the provided coordinates directly for now
+            # setFrame uses (x, y, width, height) with y from bottom-left
             rect = NSMakeRect(x, y, width, height)
             self.window.setFrame_display_(rect, True)
+            
+            # Also resize the view
+            if self.view:
+                self.view.setFrame_(NSMakeRect(0, 0, width, height))
             
             if self.geometry_callback:
                 self.geometry_callback(width, height)
