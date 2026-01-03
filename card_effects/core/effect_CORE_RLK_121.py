@@ -1,4 +1,5 @@
 """Effect for CORE_RLK_121 in CORE"""
+from simulator.enums import Race
 
 def setup(game, source):
     def on_death(game, trig_src, minion):
