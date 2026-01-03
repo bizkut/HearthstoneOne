@@ -134,6 +134,34 @@ def get_all_effects():
     except ImportError:
         pass
     
+    # Mean Streets of Gadgetzan
+    try:
+        from card_effects.gangs.gadgetzan_effects import GADGETZAN_EFFECTS
+        all_effects.update(GADGETZAN_EFFECTS)
+    except ImportError:
+        pass
+    
+    # Journey to Un'Goro
+    try:
+        from card_effects.ungoro.ungoro_effects import UNGORO_EFFECTS
+        all_effects.update(UNGORO_EFFECTS)
+    except ImportError:
+        pass
+    
+    # One Night in Karazhan
+    try:
+        from card_effects.karazhan.karazhan_effects import KARAZHAN_EFFECTS
+        all_effects.update(KARAZHAN_EFFECTS)
+    except ImportError:
+        pass
+    
+    # Demon Hunter Initiate
+    try:
+        from card_effects.initiate.initiate_effects import INITIATE_EFFECTS
+        all_effects.update(INITIATE_EFFECTS)
+    except ImportError:
+        pass
+    
     # Cache for future calls
     _effects_cache = all_effects
     return all_effects
