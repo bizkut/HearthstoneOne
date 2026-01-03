@@ -7,5 +7,5 @@ def on_play(game, source, target):
         game.deal_damage(target, 3, source)
         if target.health <= 0:
              # Summon demon from deck
-             d = next((c for c in source.controller.deck if c.race == Race.DEMON), None)
+             d = next((c for c in source.controller.deck if getattr(c, 'race', None) == Race.DEMON), None)
              if d: source.controller.draw_specific_card(d); source.controller.summon(d)
