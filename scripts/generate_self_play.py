@@ -42,6 +42,55 @@ HERO_BY_CLASS = {
 }
 
 
+class HeuristicAgent:
+    """A simple rule-based agent for better self-play data quality."""
+    
+    @staticmethod
+    def select_action(actions: List[Dict], game: Game) -> Dict:
+        if not actions:
+            return None
+            
+        # Filter actions
+        play_actions = [a for a in actions if a['type'] == 'PLAY']
+        attack_actions = [a for a in actions if a['type'] == 'ATTACK']
+        hp_actions = [a for a in actions if a['type'] == 'HERO_POWER']
+        end_turn = [a for a in actions if a['type'] == 'END_TURN'][0]
+        
+        # 1. Check for lethal (simplified: total attack on board > enemy health)
+        
+        # 2. Prioritize Playing Cards (Curve / Mana Efficiency)
+        if play_actions:
+            # Pick most expensive card we can play
+            play_actions.sort(key=lambda x: x['card'].cost, reverse=True)
+            return play_actions[0]
+            
+        # 3. Hero Power if mana available and no cards to play
+        if hp_actions:
+            return random.choice(hp_actions)
+            
+        # 4. Attacks (Trade or Face)
+        if attack_actions:
+            # Simple trade logic: kill minion if free/good trade, else face
+            killing_blows = []
+            for a in attack_actions:
+                target = a['target']
+                attacker = a['attacker']
+                if target.card_type == CardType.MINION:
+                    if attacker.attack >= target.health:
+                         killing_blows.append(a)
+            
+            if killing_blows:
+                return random.choice(killing_blows)
+                
+            face_attacks = [a for a in attack_actions if a['target'].card_type == CardType.HERO]
+            if face_attacks:
+                return random.choice(face_attacks)
+                
+            return random.choice(attack_actions)
+            
+        return end_turn
+
+
 class CardWrapper:
     """Adapts Simulator Card to SequenceEncoder interface."""
     def __init__(self, card):
@@ -131,6 +180,21 @@ class SelfPlayGenerator:
         # Load card database
         self.db = CardDatabase.get_instance()
         self.db.load()
+
+        # Build vocabulary
+        all_cards = self.db.get_collectible_cards()
+        # Also add hero cards and other non-collectibles that might appear?
+        # For now, just collectibles + explicit extras if needed
+        # 0=PAD, 1=UNKNOWN. Start at 2.
+        self.vocab = {c.card_id: i + 2 for i, c in enumerate(all_cards)}
+        
+        # Save vocab
+        vocab_path = os.path.join(os.path.dirname(output_file), 'vocab.json')
+        with open(vocab_path, 'w') as f:
+            json.dump(self.vocab, f)
+            print(f"Saved vocabulary ({len(self.vocab)} cards) to {vocab_path}")
+            
+        self.encoder = SequenceEncoder(self.vocab)
         
         # Load meta decks
         self.deck_loader = MetaDeckLoader(data_dir)
@@ -246,8 +310,8 @@ class SelfPlayGenerator:
                 turn_count += 1
                 continue
             
-            # Random policy
-            action = random.choice(actions)
+            # Heuristic policy
+            action = HeuristicAgent.select_action(actions, game)
             
             # Execute action
             if action['type'] == 'PLAY':
@@ -329,11 +393,28 @@ class SelfPlayGenerator:
             for t in targets:
                 actions.append({'type': 'ATTACK', 'attacker': player.hero, 'target': t})
         
+        # Use Hero Power
+        if player.hero_power and player.hero_power.can_use():
+             # For simple hero powers, target=None or simplified targeting
+             # Complex targeting (Mage hp) needs logic, implemented as None for now or random valid target
+             # The simulator's hero_power.targets() might help if implemented
+             # For now, simplistic approach:
+             if player.hero_power.requires_target():
+                  # Get valid targets (any char)
+                  # Simplified: just opponent face or random minion
+                   targets = player.get_valid_targets(player.hero_power)
+                   for t in targets:
+                        actions.append({'type': 'HERO_POWER', 'target': t})
+             else:
+                  actions.append({'type': 'HERO_POWER', 'target': None})
+
         # End turn is always valid
         actions.append({'type': 'END_TURN'})
         
         return actions
-    
+
+
+
     def _save_buffer(self):
         """Save training data."""
         print(f"Saving {len(self.buffer)} samples to {self.output_file}...")

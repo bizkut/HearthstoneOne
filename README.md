@@ -86,16 +86,29 @@ pip install -r requirements.txt
 python runtime/websocket_server.py --host localhost --port 9876 --model models/best_model.pt
 ```
 
-### Train Models
+### Train Models (Transformer Pipeline)
+1. **Scrape Meta Decks** (Required first time):
+   ```bash
+   python3 scripts/scrape_top_decks.py
+   ```
+
+2. **Generate Training Data**:
+   Simulate games using self-play (uses Meta Decks & Heuristic Agent):
+   ```bash
+   # Generate 1000 games (~2 min)
+   python3 scripts/generate_self_play.py --num-games 1000 --output data/self_play_data.json
+   ```
+
+3. **Train Transformer**:
+   Train on the generated data (creates models/transformer_model.pt):
+   ```bash
+   python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 50 --batch-size 64
+   ```
+
+### Legacy Training
 ```bash
 # MLP (AlphaZero self-play)
 python training/trainer.py --epochs 100 --output models/
-
-# Transformer (behavior cloning)
-python training/imitation_trainer.py --data data/replays.json --epochs 50 --output models/transformer_model.pt
-
-# Test with dummy data
-python training/imitation_trainer.py --dummy --epochs 10
 ```
 
 ---
@@ -135,10 +148,13 @@ HearthstoneOne/
 │   └── game_wrapper.py        # Simulator interface
 │
 ├── training/                  # 🏋️ Training Scripts
-│   ├── trainer.py             # AlphaZero self-play
-│   ├── imitation_trainer.py   # Behavior cloning
-│   ├── replay_parser.py       # HSReplay XML parser
-│   └── mulligan_trainer.py    # Mulligan policy training
+│   ├── imitation_trainer.py   # Transformer Trainer
+│   └── trainer.py             # Legacy AlphaZero Trainer
+│
+├── scripts/                   # 🛠️ Utility Scripts
+│   ├── generate_self_play.py  # Data Generator
+│   ├── scrape_top_decks.py    # Deck Scraper
+│   └── fetch_meta_decks.py    # Archetype Fetcher
 │
 ├── runtime/                   # 🔌 Runtime Services
 │   ├── websocket_server.py    # WebSocket API

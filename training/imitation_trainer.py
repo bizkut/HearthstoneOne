@@ -44,7 +44,11 @@ class ReplayDataset(Dataset):
     def __init__(self, data_path: str = None, data: List[dict] = None):
         if data_path and os.path.exists(data_path):
             with open(data_path, 'r') as f:
-                self.samples = json.load(f)
+                content = json.load(f)
+                if isinstance(content, dict) and 'samples' in content:
+                    self.samples = content['samples']
+                else:
+                    self.samples = content
         elif data:
             self.samples = data
         else:
@@ -294,7 +298,15 @@ if __name__ == "__main__":
         val_data = create_dummy_training_data(200)
     elif args.data:
         with open(args.data, 'r') as f:
-            data = json.load(f)
+            content = json.load(f)
+        
+        if isinstance(content, dict) and 'samples' in content:
+            data = content['samples']
+            print(f"Loaded {len(data)} samples from {args.data} (Games played: {content.get('games_played', '?')})")
+        else:
+            data = content
+            print(f"Loaded {len(data)} samples from {args.data}")
+            
         split = int(len(data) * 0.9)
         train_data = data[:split]
         val_data = data[split:]

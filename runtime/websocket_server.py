@@ -325,7 +325,19 @@ class WebSocketServer:
                     if CardTransformer:
                         print(f"[WebSocketServer] Detected Transformer model")
                         self.model = CardTransformer(action_dim=200) # Default action dim
-                        self.encoder = SequenceEncoder()
+                        
+                        # Load vocab if available
+                        vocab = None
+                        vocab_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'vocab.json')
+                        if os.path.exists(vocab_path):
+                            try:
+                                with open(vocab_path, 'r') as f:
+                                    vocab = json.load(f)
+                                print(f"[WebSocketServer] Loaded vocabulary ({len(vocab)} cards)")
+                            except Exception as e:
+                                print(f"[WebSocketServer] Failed to load vocab: {e}")
+                        
+                        self.encoder = SequenceEncoder(vocab)
                     else:
                         print("[WebSocketServer] Transformer detected but CardTransformer module missing")
                         self.model = None
