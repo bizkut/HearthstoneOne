@@ -1,4 +1,5 @@
 """Effect for MIS_104 in WHIZBANGS_WORKSHOP"""
+from simulator.enums import Race
 
 
 def on_play(game, source, target):

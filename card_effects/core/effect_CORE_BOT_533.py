@@ -1,4 +1,5 @@
 """Effect for CORE_BOT_533 in CORE"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     from simulator.card_loader import CardDatabase

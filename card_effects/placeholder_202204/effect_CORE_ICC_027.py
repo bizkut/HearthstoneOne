@@ -1,4 +1,5 @@
 """Effect for CORE_ICC_027 in PLACEHOLDER_202204"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     from simulator.card_loader import CardDatabase

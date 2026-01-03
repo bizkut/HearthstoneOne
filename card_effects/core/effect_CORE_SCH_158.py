@@ -1,4 +1,5 @@
 """Effect for CORE_SCH_158 in CORE"""
+from simulator.enums import Race
 
 def on_play(game, source, target):
     player = source.controller

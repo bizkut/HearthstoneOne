@@ -1,4 +1,5 @@
 """Effect for EX1_181 in LEGACY"""
+from simulator.enums import Race
 
 def on_play(game, source, target):
     from simulator.card_loader import CardDatabase

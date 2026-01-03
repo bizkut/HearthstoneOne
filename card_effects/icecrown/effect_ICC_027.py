@@ -1,4 +1,5 @@
 """Effect for ICC_027 in ICECROWN"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     from simulator.card_loader import CardDatabase

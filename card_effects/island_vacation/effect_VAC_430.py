@@ -1,4 +1,5 @@
 """Effect for VAC_430 in ISLAND_VACATION"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     player = source.controller

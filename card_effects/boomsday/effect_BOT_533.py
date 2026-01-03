@@ -1,4 +1,5 @@
 """Effect for BOT_533 in BOOMSDAY"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     from simulator.card_loader import CardDatabase

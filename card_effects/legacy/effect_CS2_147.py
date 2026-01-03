@@ -1,4 +1,5 @@
 """Effect for CS2_147 in LEGACY"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     for m in source.controller.board: 

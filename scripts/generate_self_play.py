@@ -263,6 +263,8 @@ class SelfPlayGenerator:
                 self.games_failed += 1
                 if self.games_failed <= 5:
                     print(f"Game failed: {e}")
+                    import traceback
+                    traceback.print_exc()
         
         self._save_buffer()
         

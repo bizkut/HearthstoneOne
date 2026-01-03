@@ -1,4 +1,5 @@
 """Effect for DEEP_001 in WILD_WEST"""
+from simulator.enums import Race
 
 
 def on_play(game, source, target):

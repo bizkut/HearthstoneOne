@@ -1,4 +1,5 @@
 """Effect for CORE_DRG_229 in CORE"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     player = source.controller

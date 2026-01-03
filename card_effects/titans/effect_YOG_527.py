@@ -1,4 +1,5 @@
 """Effect for YOG_527 in TITANS"""
+from simulator.enums import Race
 
 
 def battlecry(game, source, target):

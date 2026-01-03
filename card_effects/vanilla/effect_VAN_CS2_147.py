@@ -1,4 +1,5 @@
 """Effect for VAN_CS2_147 in VANILLA"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     for m in source.controller.board: 

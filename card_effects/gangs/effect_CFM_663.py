@@ -1,4 +1,5 @@
 """Effect for CFM_663 in GANGS"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     from simulator.card_loader import CardDatabase

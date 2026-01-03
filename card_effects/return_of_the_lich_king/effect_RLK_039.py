@@ -1,4 +1,5 @@
 """Effect for RLK_039 in RETURN_OF_THE_LICH_KING"""
+from simulator.enums import Race
 
 
 def on_play(game, source, target):

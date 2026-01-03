@@ -1,4 +1,5 @@
 """Effect for TTN_715 in TITANS"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     from simulator.card_loader import CardDatabase

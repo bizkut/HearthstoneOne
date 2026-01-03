@@ -1,4 +1,5 @@
 """Effect for BT_321 in BLACK_TEMPLE"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     player = source.controller

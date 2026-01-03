@@ -1,4 +1,5 @@
 """Effect for ETC_083 in BATTLE_OF_THE_BANDS"""
+from simulator.enums import Race
 
 
 def on_play(game, source, target):

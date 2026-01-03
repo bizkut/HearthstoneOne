@@ -1,4 +1,5 @@
 """Effect for DRG_102 in DRAGONS"""
+from simulator.enums import Race
 
 def battlecry(game, source, target):
     player = source.controller
