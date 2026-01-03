@@ -49,29 +49,34 @@ class LogWatcher:
         for root in self.POSSIBLE_ROOTS:
             if not os.path.exists(root):
                 continue
+            
+            # Check subdirectories (New definition, timestamped folders)
+            # Format: Hearthstone_YYYY_MM_DD_HH_MM_SS
+            try:
+                subdirs = []
+                for d in os.listdir(root):
+                    full_path = os.path.join(root, d)
+                    if os.path.isdir(full_path) and d.startswith("Hearthstone_"):
+                        subdirs.append(d)
                 
-            # Check for Power.log directly (Old definition)
+                if subdirs:
+                    # Sort by folder name (which contains timestamp) - newest first
+                    subdirs.sort(reverse=True)
+                    
+                    # Look for Power.log in newest folder
+                    for folder in subdirs:
+                        log_path = os.path.join(root, folder, "Power.log")
+                        if os.path.exists(log_path):
+                            return log_path
+            except Exception as e:
+                print(f"LogWatcher: Error scanning {root}: {e}")
+                continue
+            
+            # Fallback: Check for Power.log directly in root
             direct_path = os.path.join(root, "Power.log")
             if os.path.exists(direct_path):
-                # check if it's recent? 
-                pass
-                
-            # Check subdirectories (New definition, timestamped folders)
-            subdirs = [os.path.join(root, d) for d in os.listdir(root) if os.path.isdir(os.path.join(root, d))]
-            if not subdirs:
-                if os.path.exists(direct_path): return direct_path
-                continue
-                
-            # Sort by modification time (newest first)
-            subdirs.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-            
-            # Look in newest folder
-            for latest_dir in subdirs:
-                log_path = os.path.join(latest_dir, "Power.log")
-                if os.path.exists(log_path):
-                    return log_path
+                return direct_path
         
-        # Fallback check for direct path if no subdirs found valid
         return None
 
     def start(self):
@@ -92,12 +97,10 @@ class LogWatcher:
         
         try:
             with open(self.log_path, "r", encoding="utf-8") as file:
-                # Go to end of file initially to skip history?
-                # For a coaching bot, we might need the WHOLE history to reconstruct state if started mid-game.
-                # Ideally, we read from the beginning of the CURRENT game?
-                # For now, let's seek end to catch live events.
-                # Read from beginning to reconstruct full game state
-                file.seek(0, 0)
+                # Seek to end of file - we only want NEW events, not historical data
+                # When user starts a new game, CREATE_GAME will be written and we'll catch it
+                file.seek(0, 2)  # 2 = SEEK_END
+                print("LogWatcher: Waiting for new game events (skipped old data)...")
                 
                 while self._running:
                     line = file.readline()

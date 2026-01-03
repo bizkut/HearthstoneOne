@@ -100,26 +100,49 @@ class OverlayWindow(QMainWindow):
     def showEvent(self, event):
         """Called when window is shown. Apply macOS-specific click-through and stay-on-top."""
         super().showEvent(event)
-        
-        if getattr(self, '_needs_macos_passthrough', False):
+        self._apply_macos_settings()
+    
+    def _apply_macos_settings(self):
+        """Apply macOS-specific window settings."""
+        if not getattr(self, '_needs_macos_passthrough', False):
+            return
+            
+        try:
+            from AppKit import NSApplication, NSScreenSaverWindowLevel
+            
+            ns_app = NSApplication.sharedApplication()
+            for ns_window in ns_app.windows():
+                if "HearthstoneOne" in str(ns_window.title()):
+                    # Store reference for periodic refresh
+                    self._ns_window = ns_window
+                    
+                    # Make clicks pass through
+                    ns_window.setIgnoresMouseEvents_(True)
+                    # Use screen saver level (highest) to stay above all windows
+                    ns_window.setLevel_(NSScreenSaverWindowLevel)
+                    # Can appear on all spaces and doesn't activate
+                    # NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorStationary
+                    ns_window.setCollectionBehavior_((1 << 0) | (1 << 7))
+                    
+                    # Start refresh timer if not already running
+                    if not hasattr(self, '_macos_refresh_timer'):
+                        self._macos_refresh_timer = QTimer()
+                        self._macos_refresh_timer.timeout.connect(self._refresh_window_level)
+                        self._macos_refresh_timer.start(1000)  # Refresh every second
+                        print("[Overlay] macOS click-through and stay-on-top enabled (with refresh)")
+                    break
+        except Exception as e:
+            print(f"[Overlay] macOS passthrough failed: {e}")
+    
+    def _refresh_window_level(self):
+        """Periodically reapply window level to stay on top."""
+        if hasattr(self, '_ns_window') and self._ns_window:
             try:
-                # Use Objective-C bridge for NSWindow properties
-                from AppKit import NSApplication, NSFloatingWindowLevel, NSScreenSaverWindowLevel
-                
-                # Get the NSWindow for this Qt window
-                ns_app = NSApplication.sharedApplication()
-                for ns_window in ns_app.windows():
-                    if "HearthstoneOne" in str(ns_window.title()):
-                        # Make clicks pass through
-                        ns_window.setIgnoresMouseEvents_(True)
-                        # Use screen saver level to stay above all windows including fullscreen
-                        ns_window.setLevel_(NSScreenSaverWindowLevel)
-                        # Keep it from being included in window lists
-                        ns_window.setCollectionBehavior_(1 << 7)  # NSWindowCollectionBehaviorStationary
-                        print("[Overlay] macOS click-through and stay-on-top enabled")
-                        break
-            except Exception as e:
-                print(f"[Overlay] macOS passthrough failed: {e}")
+                from AppKit import NSScreenSaverWindowLevel
+                self._ns_window.setLevel_(NSScreenSaverWindowLevel)
+                self._ns_window.orderFrontRegardless()  # Force to front
+            except:
+                pass
     
     def set_geometry_callback(self, callback):
         """Set callback for when window geometry changes."""
