@@ -140,14 +140,8 @@ class AssistantWorker(QThread):
     
     def _refresh_suggestions(self):
         """Periodically refresh suggestions based on current game state."""
-        # Find player with cards
-        me = None
-        for p in self.game.players:
-            if p.hand or p.board:
-                me = p
-                break
-        
-        if me:
+        me = self.parser.get_local_player()
+        if me and (me.hand or me.board):
             self.think_and_suggest()
         
     def handle_log_line(self, line: str):
@@ -155,13 +149,16 @@ class AssistantWorker(QThread):
         # 1. Parse
         self.parser.parse_line(line)
         
-        # 2. Check for Turn Decision
-        if self.game.current_player_idx == 0: 
-            # It's our turn!
-            self.think_and_suggest()
-        else:
-            self.status_signal.emit("Opponent's Turn")
-            self.arrow_signal.emit(None, None)  # Clear arrows
+        # 2. Check if it's our turn
+        me = self.parser.get_local_player()
+        if me:
+            # Check if current player is us
+            local_idx = self.parser.local_player_id - 1
+            if self.game.current_player_idx == local_idx:
+                self.think_and_suggest()
+            else:
+                self.status_signal.emit("Opponent's Turn")
+                self.arrow_signal.emit(None, None)  # Clear arrows
 
     def think_and_suggest(self):
         """Get best action suggestion."""
@@ -241,17 +238,19 @@ class AssistantWorker(QThread):
 
     def _suggest_with_heuristic(self):
         """Use heuristic logic for suggestions (fallback)."""
-        # Find any player with cards
-        me = None
-        for p in self.game.players:
-            if p.hand or p.board:
-                me = p
-                break
+        # Use parser's local player detection
+        me = self.parser.get_local_player()
         
-        if not me:
+        if not me or (not me.hand and not me.board):
             total = sum(len(p.hand) for p in self.game.players)
-            self.status_signal.emit(f"Waiting... (Total cards: {total})")
+            p1_cards = len(self.game.players[0].hand) if self.game.players else 0
+            p2_cards = len(self.game.players[1].hand) if len(self.game.players) > 1 else 0
+            self.status_signal.emit(f"Waiting... (P1: {p1_cards}, P2: {p2_cards})")
             return
+
+        # Debug: Show current state
+        hand_cards = [c.card_id for c in me.hand[:5]]  # First 5 cards
+        print(f"[DEBUG] Hand: {len(me.hand)} cards, Mana: {me.mana}, Cards: {hand_cards}")
 
         # === PRIORITY 1: Playable Cards ===
         playable = [c for c in me.hand if hasattr(c, 'cost') and c.cost <= me.mana]
@@ -310,7 +309,9 @@ class AssistantWorker(QThread):
         if me.board:
             self._suggest_attacks(me)
         else:
-            self.status_signal.emit(f"No playable cards (Mana: {me.mana})")
+            # Show debug info: hand count, mana, and first card costs
+            card_costs = [c.cost for c in me.hand[:5] if hasattr(c, 'cost')]
+            self.status_signal.emit(f"End Turn | Hand: {len(me.hand)}, Mana: {me.mana}, Costs: {card_costs}")
             self.arrow_signal.emit(None, None)
 
     def _suggest_attacks(self, me):
@@ -376,6 +377,10 @@ def main():
     worker.status_signal.connect(window.update_info)
     worker.arrow_signal.connect(window.set_arrow)
     worker.highlight_signal.connect(window.set_highlight)
+    
+    # 4. Connect window geometry tracking
+    window.set_geometry_callback(worker.geometry.resize)
+    
     worker.start()
     
     sys.exit(app.exec())

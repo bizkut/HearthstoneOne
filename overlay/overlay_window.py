@@ -38,17 +38,54 @@ class OverlayWindow(QMainWindow):
         layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         layout.setContentsMargins(20, 20, 20, 20)
         
+        # OS-specific font
+        import platform
+        font_family = "Segoe UI"
+        if platform.system() == "Darwin":
+            font_family = ".AppleSystemUIFont"  # Default system font on macOS
+        
         # Labels
         self.status_label = QLabel("🤖 HearthstoneOne AI: Ready")
-        self.status_label.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        self.status_label.setFont(QFont(font_family, 16, QFont.Weight.Bold))
         self.status_label.setStyleSheet("color: #00FF00; background-color: rgba(0, 0, 0, 180); padding: 8px; border-radius: 5px;")
         
         self.info_label = QLabel("Waiting for game logs...")
-        self.info_label.setFont(QFont("Segoe UI", 14))
+        self.info_label.setFont(QFont(font_family, 14))
         self.info_label.setStyleSheet("color: white; background-color: rgba(0, 0, 0, 150); padding: 5px; border-radius: 3px;")
         
         layout.addWidget(self.status_label)
         layout.addWidget(self.info_label)
+        
+        # Window tracking offset (for relative positioning)
+        self.window_offset_x = 0
+        self.window_offset_y = 0
+        
+        # Start window tracking timer
+        self.track_timer = QTimer()
+        self.track_timer.timeout.connect(self.update_window_position)
+        self.track_timer.start(500)  # Check every 500ms
+        
+    def update_window_position(self):
+        """Track and follow the Hearthstone window."""
+        try:
+            from overlay.window_detector import find_hearthstone_window
+            
+            rect = find_hearthstone_window()
+            if rect:
+                # Update overlay to match Hearthstone window
+                self.setGeometry(rect.x, rect.y, rect.width, rect.height)
+                self.window_offset_x = rect.x
+                self.window_offset_y = rect.y
+                
+                # Emit signal to update geometry calculations
+                if hasattr(self, 'geometry_callback') and self.geometry_callback:
+                    self.geometry_callback(rect.width, rect.height)
+        except Exception as e:
+            pass  # Silently ignore tracking errors
+    
+    def set_geometry_callback(self, callback):
+        """Set callback for when window geometry changes."""
+        self.geometry_callback = callback
 
     def update_info(self, text):
         self.info_label.setText(text)
