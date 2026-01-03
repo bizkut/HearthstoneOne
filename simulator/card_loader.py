@@ -246,6 +246,12 @@ def create_card(card_id: str, game=None) -> Optional[Card]:
         card = Hero(data, game)
     elif data.card_type == CardType.HERO_POWER:
         card = HeroPower(data, game)
+        # Load hero power effect handler
+        if game:
+            from card_effects.hero_powers import get_hero_power_handler
+            handler = get_hero_power_handler(card_id)
+            if handler:
+                game._battlecry_handlers[card_id] = handler
     elif data.card_type == CardType.LOCATION:
         card = Location(data, game)
     else:
