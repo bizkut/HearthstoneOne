@@ -43,5 +43,10 @@ data/*.json
 # Training run outputs
 models/run_*/
 
+
 # Reference codebases
 references/
+
+# External Repos
+HSTracker/
+
