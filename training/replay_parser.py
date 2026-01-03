@@ -17,7 +17,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from simulator.game import Game
 from simulator.player import Player
-from simulator.card import CardData
+from simulator.player import Player
+from simulator.entities import CardData
 from simulator.enums import CardType, Zone
 
 
@@ -135,13 +136,21 @@ class HSReplayParser:
                 self._parse_entity(elem)
             elif elem.tag == 'TagChange':
                 # Check for turn change to snapshot state
-                tag = elem.get('tag')
-                if tag == 'TURN':
+                try:
+                    tag_id = int(elem.get('tag', 0))
+                except:
+                    continue
+                    
+                if tag_id == 20: # GameTag.TURN
                     # Save old turn
                     if current_turn.actions:
                         replay.turns.append(current_turn)
                     # Start new turn
-                    new_turn_num = int(elem.get('value'))
+                    try:
+                        new_turn_num = int(elem.get('value'))
+                    except:
+                        new_turn_num = current_turn.turn_number + 1
+                        
                     current_turn = ReplayTurn(turn_number=new_turn_num, player=self.current_player)
                     current_turn.state_snapshot = capture_snapshot()
                     self.current_turn = new_turn_num
@@ -183,20 +192,23 @@ class HSReplayParser:
         for child in elem:
             if child.tag == 'TagChange':
                 # Update entity state
-                entity_id = int(child.get('entity', 0))
-                tag = child.get('tag')
-                value = int(child.get('value', 0))
+                try:
+                    entity_id = int(child.get('entity', 0))
+                    tag_id = int(child.get('tag', 0))
+                    value = int(child.get('value', 0))
+                except:
+                    continue
                 
                 if entity_id in self.entities:
-                    if tag == 'ZONE':
+                    if tag_id == 49: # ZONE
                         self.entities[entity_id]['zone'] = value
-                    elif tag == 'CONTROLLER':
+                    elif tag_id == 50: # CONTROLLER
                         self.entities[entity_id]['controller'] = value
-                    elif tag == 'COST':
+                    elif tag_id == 48: # COST
                         self.entities[entity_id]['cost'] = value
-                    elif tag == 'ATK':
+                    elif tag_id == 47: # ATK
                         self.entities[entity_id]['attack'] = value
-                    elif tag == 'HEALTH':
+                    elif tag_id == 45: # HEALTH
                         self.entities[entity_id]['health'] = value
             elif child.tag == 'Block' or child.tag == 'Action':
                 self._parse_block(child, current_turn)
@@ -216,14 +228,27 @@ class HSReplayParser:
         
         # Extract hero class from tags
         for tag in elem.findall('Tag'):
-            tag_name = tag.get('tag')
-            if tag_name == 'CLASS':
-                class_id = int(tag.get('value', 0))
+            try:
+                tag_id = int(tag.get('tag', 0))
+                tag_value = int(tag.get('value', 0))
+            except:
+                continue
+                
+            if tag_id == 199: # GameTag.CLASS
+                class_id = tag_value
                 class_name = self._class_id_to_name(class_id)
                 if player_id == 1:
                     replay.player1_class = class_name
                 else:
                     replay.player2_class = class_name
+    
+    def _class_id_to_name(self, class_id: int) -> str:
+        """Convert class ID to name."""
+        from simulator.enums import CardClass
+        try:
+            return CardClass(class_id).name
+        except:
+            return "UNKNOWN"
     
     def _parse_entity(self, elem: ET.Element):
         """Parse FullEntity element."""
@@ -242,23 +267,23 @@ class HSReplayParser:
         }
         
         for tag in elem.findall('Tag'):
-            tag_name = tag.get('tag')
             try:
+                tag_id = int(tag.get('tag', 0))
                 tag_value = int(tag.get('value', 0))
             except:
-                tag_value = 0
+                continue
             
-            if tag_name == 'ZONE':
+            if tag_id == 49: # GameTag.ZONE
                 entity['zone'] = tag_value
-            elif tag_name == 'CONTROLLER':
+            elif tag_id == 50: # GameTag.CONTROLLER
                 entity['controller'] = tag_value
-            elif tag_name == 'COST':
+            elif tag_id == 48: # GameTag.COST
                 entity['cost'] = tag_value
-            elif tag_name == 'ATK':
+            elif tag_id == 47: # GameTag.ATK
                 entity['attack'] = tag_value
-            elif tag_name == 'HEALTH':
+            elif tag_id == 45: # GameTag.HEALTH
                 entity['health'] = tag_value
-            elif tag_name == 'CARDTYPE':
+            elif tag_id == 202: # GameTag.CARDTYPE
                 entity['card_type'] = tag_value
         
         self.entities[entity_id] = entity
@@ -267,19 +292,19 @@ class HSReplayParser:
         """Handle TagChange for turn tracking and game end."""
         try:
             entity_id = int(elem.get('entity', 0))
-            tag = elem.get('tag', '')
+            tag_id = int(elem.get('tag', 0))
             value = int(elem.get('value', 0))
         except:
             return
             
-        if tag == 'TURN':
-            pass # Handled in loop
-        elif tag == 'CURRENT_PLAYER' and value == 1:
-            # Check which player has this entity ID
-            # In logs, CURRENT_PLAYER is on the GameEntity usually, asking if player 1 is current? 
-            # Actually, CURRENT_PLAYER tag on GameEntity=1 means Player 1.
+        if tag_id == 20: # GameTag.TURN
+            # Turn change is usually on GameEntity (id=1)
+            pass 
+        elif tag_id == 23 and value == 1: # GameTag.CURRENT_PLAYER
+            # This logic needs to match how turns work in HSReplay
+            # Usually we track TURN tag changes on GameEntity
             pass
-        elif tag == 'PLAYSTATE' and value in [4, 5]:  # WON, LOST
+        elif tag_id == 17 and value in [4, 5]:  # GameTag.PLAYSTATE (WON/LOST)
             for pid, pdata in self.players.items():
                 if pdata['entity_id'] == entity_id:
                     if value == 4:  # WON
@@ -287,9 +312,9 @@ class HSReplayParser:
         
         # Update entity state
         if entity_id in self.entities:
-            if tag == 'ZONE':
+            if tag_id == 49: # ZONE
                 self.entities[entity_id]['zone'] = value
-            elif tag == 'CONTROLLER':
+            elif tag_id == 50: # CONTROLLER
                 self.entities[entity_id]['controller'] = value
 
 
