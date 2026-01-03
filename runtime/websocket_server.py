@@ -264,9 +264,11 @@ class WebSocketServer:
                 self.game_states[client_id].process_log_line(line)
                 
             elif msg_type == "request_suggestion":
-                # Get AI suggestion
-                suggestion = self.game_states[client_id].get_suggestion(
-                    self.model, self.encoder
+                # Get AI suggestion (run in thread pool to avoid blocking event loop)
+                suggestion = await asyncio.to_thread(
+                    self.game_states[client_id].get_suggestion,
+                    self.model,
+                    self.encoder
                 )
                 await websocket.send(json.dumps({
                     "type": "suggestion",
