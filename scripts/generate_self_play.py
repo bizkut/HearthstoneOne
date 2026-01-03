@@ -340,7 +340,34 @@ class SelfPlayGenerator:
                     pass
                     
             elif action['type'] == 'ATTACK':
-                game.attack(action['attacker'], action['target'])
+                attacker = action['attacker']
+                
+                # Calculate attack action label
+                # Action Space: 11-17 = Attack with minion (board index 0-6)
+                #               18 = Attack with hero
+                try:
+                    if attacker == player.hero:
+                        action_label = 18  # Hero attack
+                    else:
+                        minion_idx = player.board.index(attacker)
+                        action_label = 11 + minion_idx  # Minion attack (11-17)
+                except (ValueError, AttributeError):
+                    action_label = 11  # Fallback
+                
+                game.attack(attacker, action['target'])
+                
+                # Record attack sample
+                try:
+                    c_ids, c_feats, mask = self.encoder.encode(state)
+                    game_samples.append({
+                        'card_ids': c_ids.tolist(),
+                        'card_features': c_feats.tolist(),
+                        'action_label': action_label,
+                        'played_card': f"ATTACK_{action_label}",
+                        'player_idx': pid
+                    })
+                except:
+                    pass
                 
             elif action['type'] == 'HERO_POWER':
                 if game.use_hero_power(target=action.get('target')):

@@ -87,27 +87,46 @@ python runtime/websocket_server.py --host localhost --port 9876 --model models/b
 ```
 
 ### Train Models (Transformer Pipeline)
-1. **Scrape Meta Decks** (Required first time):
-   ```bash
-   python3 scripts/scrape_top_decks.py
-   ```
 
-2. **Generate Training Data**:
-   Simulate games using self-play (uses Meta Decks & Heuristic Agent):
-   ```bash
-   # Generate 1000 games (~2 min)
-   python3 scripts/generate_self_play.py --num-games 1000 --output data/self_play_data.json
-   ```
-
-3. **Train Transformer**:
-   Train on the generated data (creates models/transformer_model.pt):
-   ```bash
-   python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 50 --batch-size 64
-   ```
-
-### Legacy Training
+#### Quick Start
 ```bash
-# MLP (AlphaZero self-play)
+# 1. Scrape meta decks (first time only)
+python3 scripts/scrape_top_decks.py
+
+# 2. Generate training data (~2 min for 1000 games)
+python3 scripts/generate_self_play.py --num-games 1000 --output data/self_play_data.json
+
+# 3. Train the model (~6 min for 50 epochs on MPS)
+python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 50 --batch-size 64
+```
+
+#### Action Space
+The model learns to predict which action to take:
+| Label | Action |
+|-------|--------|
+| 0-9 | Play card from hand (index 0-9) |
+| 10 | Use Hero Power |
+| 11-17 | Attack with minion (board index 0-6) |
+| 18 | Attack with hero (weapon) |
+
+#### Expected Results
+| Dataset Size | Epochs | Accuracy |
+|--------------|--------|----------|
+| 1,000 games | 50 | ~75% |
+| 5,000 games | 100 | ~80%+ |
+| 10,000 games | 100 | ~85%+ |
+
+#### Advanced Training
+```bash
+# Generate larger dataset for better accuracy
+python3 scripts/generate_self_play.py --num-games 10000 --output data/self_play_data.json
+
+# Train with more epochs
+python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 100 --batch-size 128 --lr 5e-5
+```
+
+### Legacy MLP Training
+```bash
 python training/trainer.py --epochs 100 --output models/
 ```
 
