@@ -162,6 +162,13 @@ def get_all_effects():
     except ImportError:
         pass
     
+    # Scholomance Academy (manually implemented key cards)
+    try:
+        from card_effects.scholomance.scholomance_effects import SCHOLOMANCE_EFFECTS
+        all_effects.update(SCHOLOMANCE_EFFECTS)
+    except ImportError:
+        pass
+    
     # Cache for future calls
     _effects_cache = all_effects
     return all_effects
