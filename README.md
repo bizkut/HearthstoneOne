@@ -238,16 +238,18 @@ HearthstoneOne/
 
 ---
 
-## � Roadmap
+## 🗺️ Roadmap
 
 - [x] Simulateur de base
 - [x] Parser de logs
 - [x] Overlay graphique
 - [x] Suggestions de cartes
 - [x] Suggestions d'attaques
-- [ ] Pouvoir Héroïque
-- [ ] Lieux (Locations)
-- [ ] Intégration IA entraînée
+- [x] Pouvoir Héroïque (24 pouvoirs: basic + upgraded + hero cards)
+- [x] Lieux (Locations)
+- [x] Intégration IA entraînée (MCTS + Neural Network)
+- [x] Secrets (12 secrets: Mage, Hunter, Paladin, Rogue)
+- [x] 404+ effets de cartes (Classic → Scholomance)
 - [ ] Multi-suggestions (plusieurs flèches)
 
 ---
