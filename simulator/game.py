@@ -423,6 +423,25 @@ class Game:
         player.cards_played_this_game.append(card.card_id)
         self.fire_event("on_card_played", card, target)
         
+        # === SECRET CHECK: SPELLS ===
+        if card.card_type == CardType.SPELL:
+            try:
+                from card_effects.secrets import check_secrets
+                event_data = {'card': card, 'target': target, 'countered': False}
+                
+                # Check for Counterspell (on_spell_played)
+                check_secrets(self, "on_spell_played", event_data)
+                
+                if event_data['countered']:
+                    # Spell was countered - move to graveyard but do NOT trigger effects
+                    player.spells_played_this_game.append(card.card_id)
+                    player.spells_played_this_turn += 1
+                    card.zone = Zone.GRAVEYARD
+                    player.graveyard.append(card)
+                    return True
+            except ImportError:
+                pass
+        
         if card.card_type == CardType.MINION:
             return self._play_minion(card, target, position)
         elif card.card_type == CardType.SPELL:
@@ -437,73 +456,7 @@ class Game:
             return self._play_location(card, position)
         
         return False
-    
-    def _play_minion(
-        self, 
-        card: Card, 
-        target: Optional[Card] = None, 
-        position: int = -1
-    ) -> bool:
-        """Play a minion card."""
-        minion = card if isinstance(card, Minion) else Minion(card.data, self)
-        player = self.current_player
-        
-        if not player.summon(minion, position):
-            return False
-        
-        player.minions_played_this_turn += 1
-        player.minions_played_this_game_list.append(minion.card_id)
-        self.fire_event("on_minion_summon", minion)
-        
-        # Trigger battlecry
-        if card.data.battlecry:
-            self._trigger_battlecry(minion, target)
-        
-        # Process deaths
-        self.process_deaths()
-        self.check_for_game_over()
-        
-        return True
-    
-    def _play_spell(self, card: Card, target: Optional[Card] = None) -> bool:
-        """Play a spell card."""
-        player = self.current_player
-        player.spells_played_this_turn += 1
-        
-        # Trigger spell effect
-        if card.card_id in self._battlecry_handlers:
-            self._battlecry_handlers[card.card_id](self, card, target)
-        
-        # Move to graveyard
-        card.zone = Zone.GRAVEYARD
-        player.graveyard.append(card)
-        
-        # Process deaths
-        self.process_deaths()
-        self.check_for_game_over()
-        
-        return True
-    
-    def _play_weapon(self, card: Card) -> bool:
-        """Equip a weapon."""
-        weapon = card if isinstance(card, Weapon) else Weapon(card.data, self)
-        self.current_player.equip_weapon(weapon)
-        return True
-    
-    def _play_hero(self, card: Card) -> bool:
-        """Play a hero card (replaces current hero)."""
-        # Hero cards are complex - simplified for now
-        return True
-    
-    def _play_location(self, card: Card, position: int = -1) -> bool:
-        """Play a location card."""
-        player = self.current_player
-        
-        if not player.summon(card, position):
-            return False
-        
-        return True
-    
+
     def attack(self, attacker: Card, defender: Card) -> bool:
         """Execute an attack."""
         player = self.current_player
@@ -515,6 +468,22 @@ class Game:
         valid_targets = player.get_valid_attack_targets(attacker)
         if defender not in valid_targets:
             return False
+        
+        # === SECRET CHECK: ATTACK ===
+        # Trigger 'on_hero_attacked' or 'on_minion_attack'
+        # Secrets triggers might change the target (Noble Sacrifice)
+        try:
+            from card_effects.secrets import check_secrets
+            event_data = {'attacker': attacker, 'target': defender, 'new_target': None}
+            
+            trigger_type = "on_hero_attacked" if defender.card_type == CardType.HERO else "on_minion_attack"
+            check_secrets(self, trigger_type, event_data)
+            
+            # Update target if changed (Noble Sacrifice)
+            if event_data['new_target']:
+                defender = event_data['new_target']
+        except ImportError:
+            pass
         
         # Log action
         self._log_action("attack", {
@@ -567,6 +536,17 @@ class Game:
         
         # Deal damage
         if isinstance(target, Hero):
+            # Check for Ice Block (on_fatal_damage)
+            if target.health - amount <= 0:
+                try:
+                    from card_effects.secrets import check_secrets
+                    event_data = {'damage': amount, 'prevented': False}
+                    check_secrets(self, "on_fatal_damage", event_data)
+                    if event_data['prevented']:
+                        return 0
+                except ImportError:
+                    pass
+            
             actual_damage = target.take_damage(amount)
         else:
             target._damage += amount

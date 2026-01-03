@@ -19,7 +19,7 @@ SECRET_TRIGGERS = {
     "EX1_287": "on_spell_played",      # Counterspell
     "EX1_289": "on_spell_targeted",    # Ice Barrier
     "EX1_294": "on_minion_played",     # Mirror Entity
-    "EX1_295": "on_hero_attacked",     # Ice Block
+    "EX1_295": "on_fatal_damage",      # Ice Block
     "tt_010": "on_minion_attack",      # Spellbender
     "EX1_533": "on_turn_end",          # Mana Bind
     
@@ -100,7 +100,7 @@ def secret_EX1_611(game, source, event_data):
     if attacker and attacker.card_type.name == 'MINION':
         # Return to hand
         if attacker in attacker.controller.board:
-            attacker.controller.board.remove(attacker)
+            attacker.controller.remove_from_board(attacker)
             attacker._cost += 2
             attacker.controller.add_to_hand(attacker)
         return True

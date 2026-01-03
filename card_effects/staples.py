@@ -67,7 +67,7 @@ def effect_BOT_548_battlecry(game, source, target):
         target._rush = True
         # Remove Zilliax from board (it fused)
         if source in source.controller.board:
-            source.controller.board.remove(source)
+            source.controller.remove_from_board(source)
 
 
 # EX1_012 - Bloodmage Thalnos
@@ -82,9 +82,13 @@ def effect_EX1_016_deathrattle(game, source, target):
     enemy_minions = list(source.controller.opponent.board)
     if enemy_minions and len(source.controller.board) < 7:
         stolen = random.choice(enemy_minions)
-        source.controller.opponent.board.remove(stolen)
+        # Steal: remove from opponent, summon for self
+        stolen.controller.remove_from_board(stolen)
+        # We need to manually add to new board because summon() creates new entity usually?
+        # Actually player.summon takes an existing Minion entity and places it.
+        # But we must update controller first.
         stolen.controller = source.controller
-        source.controller.board.append(stolen)
+        source.controller.summon(stolen)
 
 
 # EX1_561 - Alexstrasza
