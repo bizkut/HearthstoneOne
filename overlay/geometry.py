@@ -9,31 +9,55 @@ class Point:
 class HearthstoneGeometry:
     """
     Calculates screen coordinates for Hearthstone entities based on relative geometry.
-    Assumes standard aspect ratio logic.
+    Handles any window size by calculating the actual 16:9 game area.
     """
     
+    # Hearthstone's native aspect ratio
+    GAME_ASPECT_RATIO = 16 / 9
+    
     def __init__(self, width: int = 1920, height: int = 1080):
-        self.width = width
-        self.height = height
+        self.window_width = width
+        self.window_height = height
+        self._calculate_game_area()
         
-        # Geometry Constants (Relative 0.0-1.0)
-        # Calibrated for 2560x1440 Hearthstone
-        self.HAND_Y_PCT = 0.95          # Cards in hand (very bottom)
-        self.PLAYER_BOARD_Y_PCT = 0.52  # Player's minions
-        self.OPPONENT_BOARD_Y_PCT = 0.35 # Opponent's minions
-        self.OPPONENT_HERO_Y_PCT = 0.09  # Opponent hero portrait
-        self.PLAYER_HERO_Y_PCT = 0.75    # Player hero portrait
+        # Geometry Constants (Relative 0.0-1.0 within game area)
+        # These are calibrated for Hearthstone's UI layout
+        self.HAND_Y_PCT = 0.92          # Cards in hand (near bottom)
+        self.PLAYER_BOARD_Y_PCT = 0.58  # Player's minions
+        self.OPPONENT_BOARD_Y_PCT = 0.42 # Opponent's minions
+        self.OPPONENT_HERO_Y_PCT = 0.15  # Opponent hero portrait
+        self.PLAYER_HERO_Y_PCT = 0.85    # Player hero portrait
         
         self.BOARD_CENTER_X_PCT = 0.5
-        # Width of board area where minions sit
         self.BOARD_WIDTH_PCT = 0.55
+    
+    def _calculate_game_area(self):
+        """Calculate the actual 16:9 game area within the window."""
+        window_aspect = self.window_width / self.window_height
+        
+        if window_aspect > self.GAME_ASPECT_RATIO:
+            # Window is wider than 16:9 - pillarboxing (black bars on sides)
+            self.game_height = self.window_height
+            self.game_width = int(self.window_height * self.GAME_ASPECT_RATIO)
+            self.game_x = (self.window_width - self.game_width) // 2
+            self.game_y = 0
+        else:
+            # Window is taller than 16:9 - letterboxing (black bars top/bottom)
+            self.game_width = self.window_width
+            self.game_height = int(self.window_width / self.GAME_ASPECT_RATIO)
+            self.game_x = 0
+            self.game_y = (self.window_height - self.game_height) // 2
         
     def resize(self, width: int, height: int):
-        self.width = width
-        self.height = height
+        self.window_width = width
+        self.window_height = height
+        self._calculate_game_area()
 
     def _to_pixels(self, x_pct: float, y_pct: float) -> Point:
-        return Point(int(x_pct * self.width), int(y_pct * self.height))
+        """Convert percentage coordinates within game area to absolute pixels."""
+        x = self.game_x + int(x_pct * self.game_width)
+        y = self.game_y + int(y_pct * self.game_height)
+        return Point(x, y)
 
     def get_hand_card_pos(self, index: int, total_cards: int) -> Point:
         """Returns center position of a card in player's hand."""
