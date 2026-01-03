@@ -22,6 +22,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from ai.model import HearthstoneModel
 from ai.replay_buffer import ReplayBuffer
+from ai.device import get_best_device, print_device_info
 from training.data_collector import DataCollector
 
 
@@ -40,7 +41,7 @@ class Trainer:
         self.mcts_sims = config.get('mcts_sims', 20)
         self.buffer_capacity = config.get('buffer_capacity', 10000)
         self.eval_games = config.get('eval_games', 10)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = get_best_device()  # Supports CUDA, MPS (Metal), and CPU
         
         # Model directory with timestamp
         self.run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

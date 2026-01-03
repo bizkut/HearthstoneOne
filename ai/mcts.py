@@ -4,6 +4,9 @@ import torch
 import copy
 from typing import List, Dict, Tuple, Optional
 
+from .device import get_best_device
+
+
 class MCTSNode:
     def __init__(self, state, parent=None, action_idx=None):
         self.state = state
@@ -26,14 +29,25 @@ class MCTSNode:
 class MCTS:
     """
     Monte Carlo Tree Search implementation guided by Neural Network.
+    Supports CUDA, MPS (Metal on macOS), and CPU.
     """
     
-    def __init__(self, model, encoder, game_env, c_puct=1.0, num_simulations=50):
+    def __init__(self, model, encoder, game_env, c_puct=1.0, num_simulations=50, device=None):
         self.model = model
         self.encoder = encoder
         self.game_env = game_env # Reference for cloning
         self.c_puct = c_puct
         self.num_simulations = num_simulations
+        
+        # Use model's device if not specified (ensures tensor-model alignment)
+        if device is not None:
+            self.device = device
+        else:
+            # Detect device from model parameters
+            try:
+                self.device = next(model.parameters()).device
+            except StopIteration:
+                self.device = torch.device('cpu')
         
     def search(self, root_state) -> List[float]:
         """
@@ -135,7 +149,8 @@ class MCTS:
         wrapper._game = game_copy # Inject the clone
 
         # Now we have a valid GameState from the wrapper
-        tensor = self.encoder.encode(wrapper.get_state()).unsqueeze(0) # Batch dim
+        tensor = self.encoder.encode(wrapper.get_state()).unsqueeze(0)  # Batch dim
+        tensor = tensor.to(self.device)  # Move to best device (MPS/CUDA/CPU)
         
         # Predict
         self.model.eval()

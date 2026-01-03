@@ -30,6 +30,7 @@ try:
     from ai.encoder import FeatureEncoder
     from ai.mcts import MCTS
     from ai.actions import Action
+    from ai.device import get_best_device
     AI_AVAILABLE = True
 except ImportError as e:
     print(f"[WARNING] AI modules not available: {e}")
@@ -98,7 +99,10 @@ class AssistantWorker(QThread):
         
         if model_path:
             try:
-                print(f"[AI] Loading model: {model_path}")
+                # Determine best device for inference
+                self.device = get_best_device()
+                print(f"[AI] Loading model: {model_path} (device: {self.device})")
+                
                 self.model = HearthstoneModel(input_dim=690, action_dim=200)
                 checkpoint = torch.load(model_path, map_location='cpu', weights_only=False)
                 
@@ -107,11 +111,13 @@ class AssistantWorker(QThread):
                     self.model.load_state_dict(checkpoint['model_state_dict'])
                 else:
                     self.model.load_state_dict(checkpoint)
-                    
+                
+                # Move model to best device (MPS on macOS, CUDA on Linux/Windows)
+                self.model = self.model.to(self.device)
                 self.model.eval()
                 self.encoder = FeatureEncoder()
                 self.use_ai = True
-                print("[AI] Model loaded successfully!")
+                print(f"[AI] Model loaded successfully on {self.device}!")
             except Exception as e:
                 print(f"[AI] Failed to load model: {e}")
                 self.use_ai = False
