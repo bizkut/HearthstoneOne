@@ -1,4 +1,5 @@
 import sys
+import platform
 from PyQt6.QtWidgets import QApplication, QMainWindow, QLabel, QWidget, QVBoxLayout
 from PyQt6.QtGui import QFont, QColor, QPalette, QPainter, QPen, QPolygonF
 from PyQt6.QtCore import Qt, QTimer, QPointF
@@ -25,7 +26,6 @@ class OverlayWindow(QMainWindow):
         self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating, True)
         
         # macOS-specific: Make window truly click-through
-        import platform
         if platform.system() == "Darwin":
             try:
                 from AppKit import NSWindow
@@ -54,7 +54,6 @@ class OverlayWindow(QMainWindow):
         layout.setContentsMargins(20, 20, 20, 20)
         
         # OS-specific font
-        import platform
         font_family = "Segoe UI"
         if platform.system() == "Darwin":
             font_family = ".AppleSystemUIFont"  # Default system font on macOS

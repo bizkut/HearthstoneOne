@@ -33,6 +33,14 @@ class HearthstoneGeometry:
     
     def _calculate_game_area(self):
         """Calculate the actual 16:9 game area within the window."""
+        # Guard against zero dimensions
+        if self.window_height <= 0 or self.window_width <= 0:
+            self.game_width = 1920
+            self.game_height = 1080
+            self.game_x = 0
+            self.game_y = 0
+            return
+            
         window_aspect = self.window_width / self.window_height
         
         if window_aspect > self.GAME_ASPECT_RATIO:
