@@ -41,7 +41,7 @@ class ReplayDataset(Dataset):
     - game_outcome: 1 for win, -1 for loss, 0 for unknown
     """
     
-    def __init__(self, data_path: str = None, data: List[dict] = None):
+    def __init__(self, data_path: str = None, data: List[dict] = None, device: str = None, gpu_cache: bool = False):
         if data_path and os.path.exists(data_path):
             with open(data_path, 'r') as f:
                 content = json.load(f)
@@ -55,11 +55,56 @@ class ReplayDataset(Dataset):
             self.samples = []
         
         self.encoder = SequenceEncoder()
+        
+        # GPU Caching Optimization
+        self.gpu_cache = gpu_cache
+        self.device = device
+        self.cached_card_ids = None
+        self.cached_card_features = None
+        self.cached_attention_mask = None
+        self.cached_action_labels = None
+        self.cached_outcomes = None
+        
+        if self.gpu_cache and self.device and self.samples:
+            print(f"Caching {len(self.samples)} samples to {self.device}...")
+            # Pre-allocate tensors
+            seq_len = 24
+            num_samples = len(self.samples)
+            
+            self.cached_card_ids = torch.empty((num_samples, seq_len), dtype=torch.long, device=self.device)
+            self.cached_card_features = torch.empty((num_samples, seq_len, 11), dtype=torch.float32, device=self.device)
+            self.cached_attention_mask = torch.empty((num_samples, seq_len), dtype=torch.bool, device=self.device)
+            self.cached_action_labels = torch.empty((num_samples,), dtype=torch.long, device=self.device)
+            self.cached_outcomes = torch.empty((num_samples,), dtype=torch.float32, device=self.device)
+            
+            # Fill tensors (batch processing for speed)
+            # Note: Doing this loop in python is slow, but only happens once.
+            for i, sample in enumerate(self.samples):
+                 if 'card_ids' in sample:
+                    self.cached_card_ids[i] = torch.tensor(sample['card_ids'], dtype=torch.long, device=self.device)
+                    self.cached_card_features[i] = torch.tensor(sample['card_features'], dtype=torch.float32, device=self.device)
+                    self.cached_attention_mask[i] = (self.cached_card_ids[i] != 0)
+                 else:
+                    # Fallback dummy
+                    pass
+                 self.cached_action_labels[i] = sample.get('action_label', 0)
+                 self.cached_outcomes[i] = sample.get('game_outcome', 0.0)
+                 
+            print("Dataset successfully cached in VRAM.")
+
     
     def __len__(self):
         return len(self.samples)
     
     def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, float]:
+        if self.gpu_cache and self.cached_card_ids is not None:
+            # Direct GPU Access
+            return (self.cached_card_ids[idx],
+                    self.cached_card_features[idx],
+                    self.cached_attention_mask[idx],
+                    self.cached_action_labels[idx],
+                    self.cached_outcomes[idx])
+
         sample = self.samples[idx]
         
         # Get tensors (already preprocessed or encode on-the-fly)
@@ -116,11 +161,21 @@ class ImitationTrainer:
             card_ids, card_features, attention_mask, action_labels, outcomes = batch
             
             # Move to device
-            card_ids = card_ids.to(self.device)
-            card_features = card_features.to(torch.float32).to(self.device)
-            attention_mask = attention_mask.to(self.device)
-            action_labels = action_labels.to(self.device)
-            outcomes = outcomes.to(torch.float32).to(self.device).unsqueeze(1)
+            # Move to device if not already (GPU cache puts them there)
+            if not self.gpu_cache:
+                card_ids = card_ids.to(self.device)
+                card_features = card_features.to(torch.float32).to(self.device)
+                attention_mask = attention_mask.to(self.device)
+                action_labels = action_labels.to(self.device)
+                outcomes = outcomes.to(torch.float32).to(self.device).unsqueeze(1)
+            else:
+                # Ensure float32 for floats and unsqueeze outcome if needed
+                if card_features.dtype != torch.float32:
+                    card_features = card_features.to(torch.float32)
+                if outcomes.dtype != torch.float32:
+                    outcomes = outcomes.to(torch.float32)
+                if outcomes.dim() == 1:
+                     outcomes = outcomes.unsqueeze(1)
             
             # Forward pass
             policy, value = self.model(card_ids, card_features, attention_mask)
@@ -159,11 +214,19 @@ class ImitationTrainer:
             for batch in dataloader:
                 card_ids, card_features, attention_mask, action_labels, outcomes = batch
                 
-                card_ids = card_ids.to(self.device)
-                card_features = card_features.to(torch.float32).to(self.device)
-                attention_mask = attention_mask.to(self.device)
-                action_labels = action_labels.to(self.device)
-                outcomes = outcomes.to(torch.float32).to(self.device).unsqueeze(1)
+                if not self.gpu_cache:
+                    card_ids = card_ids.to(self.device)
+                    card_features = card_features.to(torch.float32).to(self.device)
+                    attention_mask = attention_mask.to(self.device)
+                    action_labels = action_labels.to(self.device)
+                    outcomes = outcomes.to(torch.float32).to(self.device).unsqueeze(1)
+                else:
+                    if card_features.dtype != torch.float32:
+                        card_features = card_features.to(torch.float32)
+                    if outcomes.dtype != torch.float32:
+                        outcomes = outcomes.to(torch.float32)
+                    if outcomes.dim() == 1:
+                        outcomes = outcomes.unsqueeze(1)
                 
                 policy, value = self.model(card_ids, card_features, attention_mask)
                 
@@ -187,7 +250,8 @@ class ImitationTrainer:
               train_data: List[dict],
               val_data: List[dict] = None,
               num_epochs: int = 50,
-              save_path: str = "models/transformer_model.pt"):
+              save_path: str = "models/transformer_model.pt",
+              gpu_cache: bool = False):
         """
         Full training loop.
         
@@ -196,14 +260,20 @@ class ImitationTrainer:
             val_data: Optional validation samples
             num_epochs: Number of training epochs
             save_path: Path to save best model
+            gpu_cache: Whether to cache dataset in VRAM
         """
-        train_dataset = ReplayDataset(data=train_data)
-        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+        # Set instance flag for train_epoch
+        self.gpu_cache = gpu_cache
+        
+        train_dataset = ReplayDataset(data=train_data, device=self.device, gpu_cache=self.gpu_cache)
+        # If caching on GPU, num_workers MUST be 0
+        workers = 0 if self.gpu_cache else 4
+        train_loader = DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True, num_workers=workers)
         
         val_loader = None
         if val_data:
-            val_dataset = ReplayDataset(data=val_data)
-            val_loader = DataLoader(val_dataset, batch_size=self.batch_size)
+            val_dataset = ReplayDataset(data=val_data, device=self.device, gpu_cache=self.gpu_cache)
+            val_loader = DataLoader(val_dataset, batch_size=self.batch_size, num_workers=workers)
         
         best_val_loss = float('inf')
         best_val_acc = 0.0
@@ -303,6 +373,7 @@ if __name__ == "__main__":
     parser.add_argument('--dummy', action='store_true', help='Use dummy data for testing')
     parser.add_argument('--large', action='store_true', help='Use larger model (256 hidden, 6 layers)')
     parser.add_argument('--xlarge', action='store_true', help='Use XL model for CUDA (512 hidden, 8 layers, 12M params)')
+    parser.add_argument('--gpu-cache', action='store_true', help='Cache entire dataset in VRAM (Requires ~24GB VRAM for full dataset)')
     
     args = parser.parse_args()
     
@@ -340,4 +411,4 @@ if __name__ == "__main__":
         model = CardTransformer()
     
     trainer = ImitationTrainer(model, learning_rate=args.lr, batch_size=args.batch_size)
-    trainer.train(train_data, val_data, num_epochs=args.epochs, save_path=args.output)
+    trainer.train(train_data, val_data, num_epochs=args.epochs, save_path=args.output, gpu_cache=args.gpu_cache)
