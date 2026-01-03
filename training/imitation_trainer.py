@@ -6,6 +6,11 @@ Trains the Transformer model using behavior cloning on human replay data.
 
 import os
 import sys
+
+# Fix for PyTorch MPS nested tensor error
+# https://github.com/pytorch/pytorch/issues/112836
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -14,6 +19,10 @@ import numpy as np
 from typing import List, Tuple, Optional
 import time
 import json
+
+# Fix for PyTorch MPS nested tensor error
+# https://github.com/pytorch/pytorch/issues/112836
+os.environ['PYTORCH_ENABLE_MPS_FALLBACK'] = '1'
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -104,10 +113,10 @@ class ImitationTrainer:
             
             # Move to device
             card_ids = card_ids.to(self.device)
-            card_features = card_features.to(self.device)
+            card_features = card_features.to(torch.float32).to(self.device)
             attention_mask = attention_mask.to(self.device)
             action_labels = action_labels.to(self.device)
-            outcomes = outcomes.to(self.device).float().unsqueeze(1)
+            outcomes = outcomes.to(torch.float32).to(self.device).unsqueeze(1)
             
             # Forward pass
             policy, value = self.model(card_ids, card_features, attention_mask)
@@ -146,10 +155,10 @@ class ImitationTrainer:
                 card_ids, card_features, attention_mask, action_labels, outcomes = batch
                 
                 card_ids = card_ids.to(self.device)
-                card_features = card_features.to(self.device)
+                card_features = card_features.to(torch.float32).to(self.device)
                 attention_mask = attention_mask.to(self.device)
                 action_labels = action_labels.to(self.device)
-                outcomes = outcomes.to(self.device).float().unsqueeze(1)
+                outcomes = outcomes.to(torch.float32).to(self.device).unsqueeze(1)
                 
                 policy, value = self.model(card_ids, card_features, attention_mask)
                 

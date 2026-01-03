@@ -107,9 +107,53 @@ class GameStateManager:
         
         # Use MCTS if model available
         if model and encoder and AI_AVAILABLE:
-            return self._suggest_with_mcts(model, encoder)
+            # Check if Transformer
+            if CardTransformer and isinstance(model, CardTransformer):
+                return self._suggest_with_policy_network(model, encoder)
+            else:
+                return self._suggest_with_mcts(model, encoder)
         else:
             return self._suggest_with_heuristic(local_player, opponent)
+
+    def _suggest_with_policy_network(self, model, encoder) -> Suggestion:
+        """AI-based suggestion using Transformer Policy Network directly."""
+        try:
+            device = next(model.parameters()).device
+            ids, features, mask = encoder.encode(self.game.get_state())
+            
+            # Add batch dim
+            ids = ids.unsqueeze(0).to(device)
+            features = features.unsqueeze(0).to(device)
+            mask = mask.unsqueeze(0).to(device)
+            
+            with torch.no_grad():
+                policy, value = model(ids, features, mask)
+            
+            # Get best action
+            best_action_idx = int(policy.argmax().item())
+            prob = float(policy.max().item())
+            
+            # Decode action (map index to hand card)
+            local_player = self.parser.get_local_player()
+            if best_action_idx < len(local_player.hand):
+                card = local_player.hand[best_action_idx]
+                return Suggestion(
+                    action="play_card",
+                    card_id=card.card_id,
+                    card_name=card.name,
+                    card_index=best_action_idx,
+                    win_probability=prob
+                )
+            else:
+                return Suggestion(action="end_turn", win_probability=0.5)
+        except Exception as e:
+            print(f"[Policy Error] {e}")
+            import traceback
+            traceback.print_exc()
+            return self._suggest_with_heuristic(
+                self.parser.get_local_player(),
+                self.parser.get_opponent_player()
+            )
     
     def _suggest_with_mcts(self, model, encoder) -> Suggestion:
         """AI-based suggestion using MCTS."""
@@ -215,15 +259,28 @@ class WebSocketServer:
         if self.model_path and os.path.exists(self.model_path):
             try:
                 device = get_best_device()
-                self.encoder = FeatureEncoder()
-                self.model = HearthstoneModel(self.encoder.input_dim)
                 
                 checkpoint = torch.load(self.model_path, map_location=device, weights_only=False)
-                if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                    self.model.load_state_dict(checkpoint['model_state_dict'])
-                else:
-                    self.model.load_state_dict(checkpoint)
+                state_dict = checkpoint['model_state_dict'] if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint else checkpoint
                 
+                # Auto-detect model architecture
+                is_transformer = any(k.startswith('transformer.') or k.startswith('card_embedding.') for k in state_dict.keys())
+                
+                if is_transformer:
+                    if CardTransformer:
+                        print(f"[WebSocketServer] Detected Transformer model")
+                        self.model = CardTransformer(action_dim=200) # Default action dim
+                        self.encoder = SequenceEncoder()
+                    else:
+                        print("[WebSocketServer] Transformer detected but CardTransformer module missing")
+                        self.model = None
+                        return
+                else:
+                    print(f"[WebSocketServer] Detected MLP model")
+                    self.encoder = FeatureEncoder()
+                    self.model = HearthstoneModel(self.encoder.input_dim)
+                
+                self.model.load_state_dict(state_dict)
                 self.model.to(device)
                 self.model.eval()
                 print(f"[WebSocketServer] Model loaded from {self.model_path}")
@@ -233,6 +290,8 @@ class WebSocketServer:
                 
             except Exception as e:
                 print(f"[WebSocketServer] Failed to load model: {e}")
+                import traceback
+                traceback.print_exc()
                 self.model = None
         else:
             print("[WebSocketServer] No model path provided, using heuristic")

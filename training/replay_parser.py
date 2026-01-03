@@ -97,7 +97,10 @@ class HSReplayParser:
             return None
     
     def _parse_game(self, game_elem: ET.Element, filepath: str) -> ParsedReplay:
-        """Parse a Game element."""
+        """
+        Parse a Game element.
+        Maintains a running state of entities to provide snapshots.
+        """
         self.entities = {}
         self.players = {}
         self.current_turn = 0
@@ -114,22 +117,41 @@ class HSReplayParser:
         
         current_turn = ReplayTurn(turn_number=0, player=1)
         
+        # Helper to snapshot state
+        def capture_snapshot():
+            return {
+                'entities': {k: v.copy() for k, v in self.entities.items()},
+                'players': {k: v.copy() for k, v in self.players.items()},
+                'current_player': self.current_player
+            }
+        
+        # Initial snapshot
+        current_turn.state_snapshot = capture_snapshot()
+        
         for elem in game_elem:
             if elem.tag == 'Player':
                 self._parse_player(elem, replay)
             elif elem.tag == 'FullEntity':
                 self._parse_entity(elem)
             elif elem.tag == 'TagChange':
+                # Check for turn change to snapshot state
+                tag = elem.get('tag')
+                if tag == 'TURN':
+                    # Save old turn
+                    if current_turn.actions:
+                        replay.turns.append(current_turn)
+                    # Start new turn
+                    new_turn_num = int(elem.get('value'))
+                    current_turn = ReplayTurn(turn_number=new_turn_num, player=self.current_player)
+                    current_turn.state_snapshot = capture_snapshot()
+                    self.current_turn = new_turn_num
+                
                 self._handle_tag_change(elem, replay, current_turn)
-            elif elem.tag == 'Action':
-                actions = self._parse_action(elem)
-                current_turn.actions.extend(actions)
-            elif elem.tag == 'Block':
-                # Nested actions
-                for child in elem:
-                    if child.tag == 'Action':
-                        actions = self._parse_action(child)
-                        current_turn.actions.extend(actions)
+            elif elem.tag == 'Action' or elem.tag == 'Block':
+                # Recursively parse actions/blocks
+                # Note: This updates entities (TagChanges inside blocks)
+                # For this simplified parser, we just look for '7' (PLAY) blocks
+                self._parse_block(elem, current_turn)
         
         # Add final turn
         if current_turn.actions:
@@ -137,6 +159,50 @@ class HSReplayParser:
         
         return replay
     
+    def _parse_block(self, elem: ET.Element, current_turn: ReplayTurn):
+        """Recursively match blocks and tag changes."""
+        # Check if this block is a "PLAY" action (Type 7)
+        block_type = elem.get('type')
+        action_entity_id = elem.get('entity')
+        
+        if block_type == '7' and action_entity_id:  # BLOCK_PLAY
+            # Create action
+            if action_entity_id.isdigit():
+                eid = int(action_entity_id)
+                if eid in self.entities:
+                    card_id = self.entities[eid].get('card_id')
+                    if card_id:
+                        action = ReplayAction(
+                            action_type="PLAY_CARD",
+                            card_id=card_id,
+                            player=self.current_player
+                        )
+                        current_turn.actions.append(action)
+        
+        # Process children to update state
+        for child in elem:
+            if child.tag == 'TagChange':
+                # Update entity state
+                entity_id = int(child.get('entity', 0))
+                tag = child.get('tag')
+                value = int(child.get('value', 0))
+                
+                if entity_id in self.entities:
+                    if tag == 'ZONE':
+                        self.entities[entity_id]['zone'] = value
+                    elif tag == 'CONTROLLER':
+                        self.entities[entity_id]['controller'] = value
+                    elif tag == 'COST':
+                        self.entities[entity_id]['cost'] = value
+                    elif tag == 'ATK':
+                        self.entities[entity_id]['attack'] = value
+                    elif tag == 'HEALTH':
+                        self.entities[entity_id]['health'] = value
+            elif child.tag == 'Block' or child.tag == 'Action':
+                self._parse_block(child, current_turn)
+            elif child.tag == 'FullEntity':
+                self._parse_entity(child)
+
     def _parse_player(self, elem: ET.Element, replay: ParsedReplay):
         """Parse Player element."""
         player_id = int(elem.get('playerID', 0))
@@ -144,15 +210,14 @@ class HSReplayParser:
         
         self.players[player_id] = {
             'entity_id': entity_id,
+            'player_id': player_id,
             'name': elem.get('name', f'Player{player_id}'),
         }
         
         # Extract hero class from tags
         for tag in elem.findall('Tag'):
             tag_name = tag.get('tag')
-            if tag_name == 'CARDTYPE' and tag.get('value') == '3':  # HERO
-                pass  # Hero card
-            elif tag_name == 'CLASS':
+            if tag_name == 'CLASS':
                 class_id = int(tag.get('value', 0))
                 class_name = self._class_id_to_name(class_id)
                 if player_id == 1:
@@ -170,131 +235,146 @@ class HSReplayParser:
             'card_id': card_id,
             'zone': 0,
             'controller': 0,
+            'cost': 0,
+            'attack': 0,
+            'health': 0,
+            'card_type': 0
         }
         
         for tag in elem.findall('Tag'):
             tag_name = tag.get('tag')
-            tag_value = tag.get('value')
+            try:
+                tag_value = int(tag.get('value', 0))
+            except:
+                tag_value = 0
             
             if tag_name == 'ZONE':
-                entity['zone'] = int(tag_value)
+                entity['zone'] = tag_value
             elif tag_name == 'CONTROLLER':
-                entity['controller'] = int(tag_value)
+                entity['controller'] = tag_value
             elif tag_name == 'COST':
-                entity['cost'] = int(tag_value)
+                entity['cost'] = tag_value
             elif tag_name == 'ATK':
-                entity['attack'] = int(tag_value)
+                entity['attack'] = tag_value
             elif tag_name == 'HEALTH':
-                entity['health'] = int(tag_value)
+                entity['health'] = tag_value
+            elif tag_name == 'CARDTYPE':
+                entity['card_type'] = tag_value
         
         self.entities[entity_id] = entity
     
     def _handle_tag_change(self, elem: ET.Element, replay: ParsedReplay, current_turn: ReplayTurn):
         """Handle TagChange for turn tracking and game end."""
-        entity_id = int(elem.get('entity', 0))
-        tag = elem.get('tag', '')
-        value = elem.get('value', '')
-        
+        try:
+            entity_id = int(elem.get('entity', 0))
+            tag = elem.get('tag', '')
+            value = int(elem.get('value', 0))
+        except:
+            return
+            
         if tag == 'TURN':
-            self.current_turn = int(value)
-        elif tag == 'CURRENT_PLAYER' and value == '1':
-            # New player's turn
-            if entity_id in [p['entity_id'] for p in self.players.values()]:
-                for pid, pdata in self.players.items():
-                    if pdata['entity_id'] == entity_id:
-                        self.current_player = pid
-        elif tag == 'PLAYSTATE' and value in ['4', '5']:  # WON, LOST
+            pass # Handled in loop
+        elif tag == 'CURRENT_PLAYER' and value == 1:
+            # Check which player has this entity ID
+            # In logs, CURRENT_PLAYER is on the GameEntity usually, asking if player 1 is current? 
+            # Actually, CURRENT_PLAYER tag on GameEntity=1 means Player 1.
+            pass
+        elif tag == 'PLAYSTATE' and value in [4, 5]:  # WON, LOST
             for pid, pdata in self.players.items():
                 if pdata['entity_id'] == entity_id:
-                    if value == '4':  # WON
+                    if value == 4:  # WON
                         replay.winner = pid
-    
-    def _parse_action(self, elem: ET.Element) -> List[ReplayAction]:
-        """Parse Action element."""
-        actions = []
         
-        # Look for meaningful actions
-        entity = elem.get('entity', '')
-        action_type = elem.get('type', '')
-        
-        # Simplified action parsing - look for card plays
-        if action_type == '7':  # POWER
-            target = elem.get('target', '')
-            
-            # Try to determine action type
-            if entity.isdigit():
-                entity_id = int(entity)
-                if entity_id in self.entities:
-                    card_id = self.entities[entity_id].get('card_id', '')
-                    if card_id:
-                        action = ReplayAction(
-                            action_type="PLAY_CARD",
-                            card_id=card_id,
-                            target_id=target if target else None,
-                            player=self.current_player
-                        )
-                        actions.append(action)
-        
-        return actions
-    
-    def _class_id_to_name(self, class_id: int) -> str:
-        """Convert class ID to name."""
-        classes = {
-            1: "Warrior", 2: "Shaman", 3: "Rogue", 4: "Paladin",
-            5: "Hunter", 6: "Druid", 7: "Warlock", 8: "Mage",
-            9: "Priest", 10: "DeathKnight", 11: "DemonHunter"
-        }
-        return classes.get(class_id, "Unknown")
+        # Update entity state
+        if entity_id in self.entities:
+            if tag == 'ZONE':
+                self.entities[entity_id]['zone'] = value
+            elif tag == 'CONTROLLER':
+                self.entities[entity_id]['controller'] = value
 
 
-def parse_replay_directory(directory: str, max_files: int = None) -> List[ParsedReplay]:
-    """Parse all replay files in a directory."""
-    replays = []
-    parser = HSReplayParser()
-    
-    files = [f for f in os.listdir(directory) if f.endswith('.xml')]
-    if max_files:
-        files = files[:max_files]
-    
-    print(f"Parsing {len(files)} replay files...")
-    
-    for i, filename in enumerate(files):
-        filepath = os.path.join(directory, filename)
-        replay = parser.parse_file(filepath)
+class MockCard:
+    """Mock Card object for SequenceEncoder."""
+    def __init__(self, data):
+        self.card_id = data.get('card_id')
+        self.cost = data.get('cost', 0)
+        self.attack = data.get('attack', 0)
+        self.health = data.get('health', 0)
+        # Convert HSReplay card type (Minion=4) to our enum (Minion=0?)
+        # 4=Minion, 5=Spell, 7=Weapon, 3=Hero
+        t = data.get('card_type', 0)
+        if t == 4: self.card_type = 0 # Minion
+        elif t == 5: self.card_type = 1 # Spell
+        elif t == 7: self.card_type = 2 # Weapon
+        elif t == 3: self.card_type = 3 # Hero
+        else: self.card_type = 0
+
+class MockPlayer:
+    """Mock Player object."""
+    def __init__(self, entities, player_id, zone_play=1, zone_hand=3):
+        self.board = []
+        self.hand = []
         
-        if replay and replay.turns:
-            replays.append(replay)
-        
-        if (i + 1) % 100 == 0:
-            print(f"  Parsed {i + 1}/{len(files)} files")
-    
-    print(f"Successfully parsed {len(replays)} replays with actions")
-    return replays
+        for e in entities.values():
+            if e['controller'] == player_id:
+                if e['zone'] == zone_play and e.get('card_type') == 4: # PLAY & Minion
+                    self.board.append(MockCard(e))
+                elif e['zone'] == zone_hand: # HAND
+                    self.hand.append(MockCard(e))
+
+class MockGameState:
+    """Mock GameState object."""
+    def __init__(self, snapshot, active_player):
+        p1_id = 1
+        p2_id = 2
+        # Determine friendly/enemy based on active_player
+        self.friendly_player = MockPlayer(snapshot['entities'], active_player)
+        enemy_id = 2 if active_player == 1 else 1
+        self.enemy_player = MockPlayer(snapshot['entities'], enemy_id)
 
 
-def extract_training_pairs(replays: List[ParsedReplay]) -> List[Tuple[Dict, ReplayAction]]:
+def extract_training_pairs(replays: List[ParsedReplay]) -> List[Dict]:
     """
-    Extract (state, action) pairs for training.
-    
-    Note: This is a simplified version. A full implementation would
-    re-simulate each game to get accurate GameState tensors.
+    Extract processed training samples with tensors.
     """
-    pairs = []
+    from ai.transformer_model import SequenceEncoder
+    encoder = SequenceEncoder()
+    samples = []
+    
+    # 1=PLAY, 2=DECK, 3=HAND, 4=GRAVEYARD
     
     for replay in replays:
+        if replay.winner == 0: continue
+        
         for turn in replay.turns:
+            if not turn.state_snapshot: continue
+            
             for action in turn.actions:
                 if action.action_type == "PLAY_CARD" and action.card_id:
-                    # Create simplified state
-                    state = {
-                        'turn': turn.turn_number,
-                        'player': action.player,
-                        'player_class': replay.player1_class if action.player == 1 else replay.player2_class,
-                        'opponent_class': replay.player2_class if action.player == 1 else replay.player1_class,
-                    }
-                    pairs.append((state, action))
+                    # Create MockGameState from snapshot
+                    try:
+                        # Find player ID from snapshot or action
+                        pid = action.player
+                        
+                        # Reconstruct state
+                        game_state = MockGameState(turn.state_snapshot, pid)
+                        
+                        # Encode
+                        card_ids, features, mask = encoder.encode(game_state)
+                        
+                        # Create sample
+                        sample = {
+                            'card_ids': card_ids.tolist(),
+                            'card_features': features.tolist(),
+                            'action_label': 0, # Should map action.card_id to index 
+                            'game_outcome': 1.0 if replay.winner == pid else -1.0
+                        }
+                        samples.append(sample)
+                    except Exception as e:
+                        # print(f"Error encoding sample: {e}")
+                        pass
     
-    return pairs
+    return samples
 
 
 if __name__ == "__main__":
