@@ -143,12 +143,12 @@ class AssistantWorker(QThread):
             loc_name = loc.data.name if hasattr(loc, 'data') and loc.data else "Location"
             self.status_signal.emit(f"Activate: {loc_name}")
             
-            # Calculate location position
-            loc_index = locations.index(loc)
-            minions_on_board = [c for c in me.board if hasattr(c, 'card_type') and c.card_type != CardType.LOCATION]
-            loc_pos = self.geometry.get_location_pos(loc_index, len(locations), len(minions_on_board))
+            # Locations are on the SAME board as minions, use real board index
+            board_index = me.board.index(loc)
+            loc_pos = self.geometry.get_player_minion_pos(board_index, len(me.board))
             self.highlight_signal.emit(loc_pos)
             return
+
         
         # === PRIORITY 3: Attack with minions ===
         if me.board:
