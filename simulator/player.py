@@ -262,6 +262,16 @@ class Player(Entity):
                 drawn.append(card)
         
         return drawn
+
+    @property
+    def fatigue(self) -> int:
+        """Alias for fatigue_counter for compatibility."""
+        return self.fatigue_counter
+
+    @fatigue.setter
+    def fatigue(self, value: int) -> None:
+        self.fatigue_counter = value
+
     
     def add_to_hand(self, card: Card) -> bool:
         """Add a card to hand (not from deck)."""
