@@ -669,6 +669,9 @@ class Game:
         source: Optional[Card] = None
     ) -> int:
         """Deal damage to a target."""
+        if not target:
+            return 0
+            
         if target.immune:
             return 0
         
