@@ -99,7 +99,7 @@ def effect_BRM_030_battlecry(game, source, target):
     from simulator.enums import CardType
     
     opponent_class = None
-    if source.controller.opponent.hero:
+    if source.controller.opponent.hero and source.controller.opponent.hero.data:
         opponent_class = getattr(source.controller.opponent.hero.data, 'card_class', None)
     
     if opponent_class:

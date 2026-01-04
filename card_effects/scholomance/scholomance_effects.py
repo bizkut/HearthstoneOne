@@ -236,10 +236,14 @@ def effect_SCH_230_spellburst(game, source, spell_event):
     db = CardDatabase.get_instance()
     db.load()
     
+    hero_class = source.controller.hero.data.card_class if (source.controller.hero and source.controller.hero.data) else None
+    if not hero_class:
+        return
+
     class_spells = [
         cid for cid, card in db._cards.items()
         if card.card_type == CardType.SPELL 
-        and card.card_class == source.controller.hero.data.card_class 
+        and card.card_class == hero_class 
         and card.collectible
     ]
     for _ in range(2):
