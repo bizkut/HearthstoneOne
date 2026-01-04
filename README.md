@@ -200,21 +200,40 @@ python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --x
 ---
 
 #### Apple Silicon (MLX) Training
-For M1/M2/M3/M4 Macs with large datasets:
+For M1/M2/M3/M4 Macs with large datasets (50GB+):
 
+**Step 1: Convert to Binary Format**
 ```bash
-# Convert to binary format (handles 50GB+ datasets)
 python3 scripts/convert_to_binary.py \
     --input data/self_play_data.json \
     --output data/binary_data
+```
+*Converts JSON to memory-mapped files for disk-based streaming.*
 
-# Train with MLX
+**Step 2: Train with MLX**
+```bash
 python3 training/mlx_imitation_trainer.py \
     --data data/binary_data \
     --epochs 100 \
     --batch-size 1024 \
     --large
 ```
+*Uses Apple's MLX framework optimized for Unified Memory.*
+
+**Step 3: Convert Back to PyTorch**
+```bash
+python3 scripts/convert_mlx_to_pt.py \
+    --mlx models/mlx_model.npz \
+    --pt models/transformer_model.pt \
+    --large
+```
+*Converts weights for use with the game engine and RL scripts.*
+
+| Script | Purpose |
+|--------|---------|
+| `convert_to_binary.py` | JSON → Memmap (handles datasets > RAM) |
+| `mlx_imitation_trainer.py` | MLX training loop |
+| `convert_mlx_to_pt.py` | MLX → PyTorch weights |
 
 ---
 
