@@ -42,6 +42,9 @@ class GameState:
         is_game_over: Whether the game has ended
         winner: Winner player ID (None if not over)
         phase: Current game phase
+        opponent_cards_played: Cards played by opponent (Phase 8)
+        opponent_action_history: Action types taken by opponent (Phase 8)
+        opponent_archetype: Predicted deck archetype (Phase 8)
     """
     turn: int
     current_player: int
@@ -50,6 +53,11 @@ class GameState:
     is_game_over: bool = False
     winner: Optional[int] = None
     phase: str = "MAIN"  # MULLIGAN, MAIN, GAME_OVER
+    
+    # Phase 8: Opponent Modeling
+    opponent_cards_played: List[int] = field(default_factory=list)
+    opponent_action_history: List[int] = field(default_factory=list)
+    opponent_archetype: int = 0  # DeckArchetype enum value
     
     @property
     def board(self) -> BoardState:
