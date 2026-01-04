@@ -176,9 +176,15 @@ Repeat Steps 2-3 to improve the model:
 2. Generate new RL data with the improved model
 3. Repeat until performance plateaus
 
+> [!IMPORTANT]
+> Use a **rolling window** to prevent unbounded data growth. Old heuristic data becomes stale as the model improves — keeping only recent samples trains on games played at current skill level.
+
 ```bash
-# Merge datasets
-python3 -c "import json; d1=json.load(open('data/self_play_data.json')); d2=json.load(open('data/rl_data.json')); d1['samples'].extend(d2['samples']); json.dump(d1, open('data/combined.json','w'))"
+# Merge with rolling window (keeps last 100k samples, discards oldest)
+python3 scripts/merge_datasets.py \
+    --base data/combined.json \
+    --new data/rl_data.json \
+    --max-samples 100000
 
 # Train on combined data
 python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --xlarge
