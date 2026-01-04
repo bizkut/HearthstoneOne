@@ -59,8 +59,8 @@ class ModelAgent:
         
         self.simulations = simulations
         
-        # Load Model
-        self.model = CardTransformer(hidden_dim=256, num_layers=6, num_heads=8, dropout=0.0)
+        # Load Model - must match checkpoint architecture
+        self.model = CardTransformer(hidden_dim=512, num_layers=8, num_heads=8, dropout=0.0)
         self.model.eval()
         
         if os.path.exists(model_path):
