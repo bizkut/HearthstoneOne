@@ -97,7 +97,7 @@ def effect_EX1_400_battlecry(game, source, target):
 def effect_EX1_606_battlecry(game, source, target):
     """Shield Block: Gain 5 Armor. Draw a card."""
     if source.controller.hero:
-        source.controller.hero.gain_armor(5)
+        source.controller.gain_armor(5)
     source.controller.draw(1)
 
 
@@ -507,7 +507,7 @@ def effect_CS2_005_battlecry(game, source, target):
     """Claw: Give your hero +2 Attack this turn and 2 Armor."""
     if source.controller.hero:
         source.controller.hero._attack += 2
-        source.controller.hero.gain_armor(2)
+        source.controller.gain_armor(2)
 
 
 # CS2_007 - Healing Touch
@@ -614,7 +614,7 @@ def effect_EX1_570_battlecry(game, source, target):
     """Bite: Give your hero +4 Attack this turn and 4 Armor."""
     if source.controller.hero:
         source.controller.hero._attack += 4
-        source.controller.hero.gain_armor(4)
+        source.controller.gain_armor(4)
 
 
 # EX1_571 - Force of Nature

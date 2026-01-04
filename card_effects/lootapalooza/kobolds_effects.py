@@ -113,7 +113,7 @@ def effect_LOOT_388_battlecry(game, source, target):
 def effect_LOOT_413_deathrattle(game, source):
     """Plated Beetle: Deathrattle: Gain 3 Armor."""
     if source.controller.hero:
-        source.controller.hero.gain_armor(3)
+        source.controller.gain_armor(3)
 
 
 # Registry

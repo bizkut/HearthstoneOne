@@ -59,7 +59,7 @@ def secret_EX1_287(game, source, event_data):
 def secret_EX1_289(game, source, event_data):
     """Ice Barrier: When your hero is attacked, gain 8 Armor."""
     if source.controller.hero:
-        source.controller.hero.gain_armor(8)
+        source.controller.gain_armor(8)
     return True
 
 

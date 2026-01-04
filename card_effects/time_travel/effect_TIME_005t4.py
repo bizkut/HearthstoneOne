@@ -6,4 +6,4 @@ def battlecry(game, source, target):
     armor = 5
     if any(c.card_id.startswith('TIME_005') for c in p.hand if c != source):
         armor += 5
-    p.hero.gain_armor(armor)
+    p.gain_armor(armor)

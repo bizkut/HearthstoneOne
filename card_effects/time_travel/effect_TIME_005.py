@@ -15,7 +15,8 @@ def battlecry(game, source, target):
     print(f"DEBUG: Missing = {others - played}")
     if others.issubset(played):
         print("DEBUG: EXODIA CONDITION MET!")
-        game.deal_damage(player.opponent.hero, 100, source) # Exodia!
+        if player.opponent and player.opponent.hero:
+            game.deal_damage(player.opponent.hero, 100, source) # Exodia!
     else:
         print("DEBUG: EXODIA CONDITION NOT MET.")
 

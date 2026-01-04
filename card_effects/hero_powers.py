@@ -88,7 +88,7 @@ def hp_reinforce(game, source, target):
 def hp_armor_up(game, source, target):
     """Warrior: Gain 2 armor."""
     if source.controller.hero:
-        source.controller.hero.gain_armor(2)
+        source.controller.gain_armor(2)
 
 
 def hp_shapeshift(game, source, target):
@@ -97,7 +97,7 @@ def hp_shapeshift(game, source, target):
         # Note: Hero attack resets each turn in game engine (via attacks_this_turn reset)
         # The +1 attack is temporary for this turn only
         source.controller.hero._attack += 1
-        source.controller.hero.gain_armor(1)
+        source.controller.gain_armor(1)
 
 
 def hp_steady_shot(game, source, target):
@@ -183,14 +183,14 @@ def hp_the_silver_hand(game, source, target):
 def hp_tank_up(game, source, target):
     """Upgraded Warrior: Gain 4 armor."""
     if source.controller.hero:
-        source.controller.hero.gain_armor(4)
+        source.controller.gain_armor(4)
 
 
 def hp_dire_shapeshift(game, source, target):
     """Upgraded Druid: +2 Attack this turn, +2 Armor."""
     if source.controller.hero:
         source.controller.hero._attack += 2
-        source.controller.hero.gain_armor(2)
+        source.controller.gain_armor(2)
 
 
 def hp_ballista_shot(game, source, target):

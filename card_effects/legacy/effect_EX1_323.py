@@ -2,4 +2,4 @@
 
 def battlecry(game, source, target):
     # Simplified: doesn't replace hero entity, just stats
-    source.controller.hero.health = 15; source.controller.hero.max_health = 15
+    source.controller.set_hero_health(15)

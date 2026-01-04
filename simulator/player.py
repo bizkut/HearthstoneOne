@@ -193,6 +193,22 @@ class Player(Entity):
         """Get hero's armor."""
         return self.hero.armor if self.hero else 0
     
+    def gain_armor(self, amount: int) -> None:
+        """Safely gain armor (handles None hero)."""
+        if self.hero:
+            self.hero.gain_armor(amount)
+    
+    def add_hero_attack(self, amount: int) -> None:
+        """Safely add attack to hero (handles None hero)."""
+        if self.hero:
+            self.hero.attack += amount
+    
+    def set_hero_health(self, value: int) -> None:
+        """Safely set hero health (handles None hero)."""
+        if self.hero:
+            self.hero.health = value
+            self.hero.max_health = value
+    
     def add_to_deck(self, card: Card) -> bool:
         """Add a card to the deck."""
         if len(self.deck) >= self.MAX_DECK_SIZE:

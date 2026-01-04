@@ -4,4 +4,5 @@
 def battlecry(game, source, target):
     opp = source.controller.opponent
     # Kill Llane placeholder
-    opp.hero.health //= 2
+    if opp and opp.hero:
+        opp.hero.health //= 2

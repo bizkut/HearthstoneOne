@@ -3,4 +3,4 @@
 
 def on_play(game, source, target):
     # Armor Up (Simplified Warrior spell)
-    source.controller.hero.gain_armor(10)
+    source.controller.gain_armor(10)

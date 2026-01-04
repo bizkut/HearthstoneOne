@@ -202,7 +202,7 @@ def effect_BRM_013_battlecry(game, source, target):
 # BRM_015 - Revenge
 def effect_BRM_015_battlecry(game, source, target):
     """Revenge: Deal 1 damage to all minions. If you have 12 or less Health, deal 3 damage instead."""
-    damage = 3 if source.controller.hero.health <= 12 else 1
+    damage = 3 if source.controller.health <= 12 else 1
     for p in game.players:
         for m in p.board[:]:
             game.deal_damage(m, damage)
