@@ -141,9 +141,19 @@ python3 training/imitation_trainer.py \
 
 ---
 
-#### Step 3: Generate MCTS Data (Reinforcement Learning)
-> Higher quality data using Monte Carlo Tree Search. Run after Step 2.
+#### Step 3: Generate RL Data (Neural Network)
+> After training, generate higher quality data using the trained model.
 
+**Option A: Policy Network (Fast)**
+```bash
+python3 scripts/generate_alphazero_play.py \
+    --num-games 5000 \
+    --model models/transformer_model.pt \
+    --output data/rl_data.json
+```
+*Uses the Neural Network directly to select actions. Fast but limited lookahead.*
+
+**Option B: Full MCTS (Highest Quality)**
 ```bash
 python3 scripts/generate_mcts_play.py \
     --sims 50 \
@@ -151,24 +161,24 @@ python3 scripts/generate_mcts_play.py \
     --model models/transformer_model.pt \
     --output data/mcts_data.json
 ```
+*Uses Monte Carlo Tree Search with the model. Slower but produces stronger play.*
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `--sims` | 50 | MCTS simulations per move (50-800) |
-| `--games` | 1000 | Games to generate |
-| `--workers` | 8 | Parallel workers |
+| Script | Method | Speed | Quality |
+|--------|--------|-------|---------|
+| `generate_alphazero_play.py` | Policy Network | ⚡ Fast | Good |
+| `generate_mcts_play.py` | MCTS (50 sims) | 🐢 Slow | Best |
 
 ---
 
 #### Step 4: Iterate (AlphaZero Loop)
 Repeat Steps 2-3 to improve the model:
-1. Train on combined data (`self_play_data.json` + `mcts_data.json`)
-2. Generate new MCTS data with the improved model
+1. Train on combined data
+2. Generate new RL data with the improved model
 3. Repeat until performance plateaus
 
 ```bash
 # Merge datasets
-python3 -c "import json; d1=json.load(open('data/self_play_data.json')); d2=json.load(open('data/mcts_data.json')); d1['samples'].extend(d2['samples']); json.dump(d1, open('data/combined.json','w'))"
+python3 -c "import json; d1=json.load(open('data/self_play_data.json')); d2=json.load(open('data/rl_data.json')); d1['samples'].extend(d2['samples']); json.dump(d1, open('data/combined.json','w'))"
 
 # Train on combined data
 python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --xlarge
