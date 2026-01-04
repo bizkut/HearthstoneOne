@@ -70,6 +70,7 @@ class ReplayDataset(Dataset):
             # Pre-allocate tensors
             seq_len = 24
             num_samples = len(self.samples)
+            self._num_samples = num_samples  # Store count BEFORE deleting samples
             
             self.cached_card_ids = torch.empty((num_samples, seq_len), dtype=torch.long, device=self.device)
             self.cached_card_features = torch.empty((num_samples, seq_len, 11), dtype=torch.float32, device=self.device)
@@ -96,9 +97,14 @@ class ReplayDataset(Dataset):
             import gc
             gc.collect()
             print("System RAM freed.")
+        else:
+            self._num_samples = len(self.samples) if self.samples else 0
 
     
     def __len__(self):
+        # Use stored count when GPU caching (self.samples is empty after caching)
+        if self.gpu_cache and self.cached_card_ids is not None:
+            return self._num_samples
         return len(self.samples)
     
     def __getitem__(self, idx) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, int, float]:
