@@ -179,6 +179,14 @@ Repeat Steps 2-3 to improve the model:
 > [!IMPORTANT]
 > Use a **rolling window** to prevent unbounded data growth. Old heuristic data becomes stale as the model improves — keeping only recent samples trains on games played at current skill level.
 
+> [!CAUTION]
+> **Don't add RL data too early!** Wait until your model reaches sufficient accuracy:
+> | Accuracy | RL Data Quality |
+> |----------|-----------------|
+> | < 60% | ❌ Too noisy — keep training on heuristic data |
+> | 60-75% | ⚠️ Use sparingly, may introduce noise |
+> | > 75% | ✅ Good quality — safe to use in RL loop |
+
 ```bash
 # Merge with rolling window (keeps last 100k samples, discards oldest)
 python3 scripts/merge_datasets.py \
@@ -186,9 +194,24 @@ python3 scripts/merge_datasets.py \
     --new data/rl_data.json \
     --max-samples 100000
 
-# Train on combined data
-python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --xlarge
+# Fine-tune on combined data (use --resume to keep learned weights)
+python3 training/mlx_imitation_trainer.py \
+    --data data/combined.json \
+    --resume models/transformer_model.npz \
+    --epochs 50 --batch-size 2048 --lr 1e-5
 ```
+
+---
+
+#### Fine-Tuning vs Training from Scratch
+
+| Mode | Flag | Learning Rate | When to Use |
+|------|------|---------------|-------------|
+| **From Scratch** | (none) | `5e-4` | Initial training, new architecture |
+| **Fine-Tune** | `--resume model.npz` | `1e-5` | Adding new data, continuing training |
+
+> [!TIP]
+> Fine-tuning LR should be **5-10x lower** than initial training. Start with `1e-5`, try `1e-4` if accuracy plateaus quickly.
 
 ---
 
@@ -209,18 +232,25 @@ python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --x
 For M1/M2/M3/M4 Macs — **10x faster** than PyTorch on Apple Silicon:
 
 ```bash
-# Same interface as PyTorch trainer - conversions happen automatically
+# Initial training (from scratch)
 python3 training/mlx_imitation_trainer.py \
     --data data/self_play_data.json \
     --epochs 100 \
     --batch-size 1024 \
     --large
+
+# Fine-tuning (resume from existing model)
+python3 training/mlx_imitation_trainer.py \
+    --data data/combined.json \
+    --resume models/transformer_model.npz \
+    --epochs 50 --batch-size 2048 --lr 1e-5
 ```
 
 **What happens automatically:**
 1. JSON → Binary cache (on first run, reused afterward)
 2. MLX training on Unified Memory
 3. Output → PyTorch `.pt` model
+4. Early stopping after 10 epochs without improvement
 
 | Model Size | Flag | Dataset Size | Speed |
 |------------|------|--------------|-------|

@@ -348,6 +348,8 @@ if __name__ == "__main__":
     parser.add_argument('--large', action='store_true')
     parser.add_argument('--xlarge', action='store_true')
     parser.add_argument('--lr', type=float, default=5e-4)
+    parser.add_argument('--resume', type=str, default=None,
+                        help="Resume training from existing MLX weights (.npz)")
     parser.add_argument('--output', type=str, default="models/transformer_model.pt", 
                         help="Output path (.pt for PyTorch, .npz for MLX)")
     args = parser.parse_args()
@@ -383,6 +385,19 @@ if __name__ == "__main__":
     else:
         model = CardTransformer(hidden_dim=128, num_layers=4, num_heads=4)
         large_flag = False
+    
+    # Load existing weights if resuming
+    if args.resume:
+        if os.path.exists(args.resume):
+            print(f"Resuming from: {args.resume}")
+            try:
+                model.load_weights(args.resume, strict=False)
+                print("  Weights loaded (partial load OK if architecture differs)")
+            except Exception as e:
+                print(f"  Warning: Could not load weights: {e}")
+                print("  Starting from scratch")
+        else:
+            print(f"Warning: Resume file not found: {args.resume}, starting from scratch")
     
     # Train
     mlx_output = args.output.replace('.pt', '.npz') if args.output.endswith('.pt') else args.output
