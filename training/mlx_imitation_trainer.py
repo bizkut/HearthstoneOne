@@ -194,6 +194,28 @@ class MLXImitationTrainer:
         print(f"\n  Moving to Unified Memory...")
         return mx.array(np_c_ids), mx.array(np_c_feats), mx.array(np_c_ids != 0), mx.array(np_lbls), mx.array(np_outs)
 
+    def _suggest_batch_size(self, num_samples, user_batch_size):
+        """Suggest optimal batch size based on dataset size (doesn't override user choice)."""
+        # For 24GB RAM Mac, estimate ~2-4GB for MLX tensors/gradients, rest for data
+        # batch_size=2048 uses ~8GB, 4096 uses ~15GB, 8192 uses ~25GB+
+        if num_samples < 50000:
+            recommended = 1024
+        elif num_samples < 200000:
+            recommended = 2048
+        elif num_samples < 500000:
+            recommended = 2048  # Cap at 2048 for RAM efficiency
+        else:
+            recommended = 2048  # Cap at 2048 for RAM efficiency
+        
+        if user_batch_size < recommended:
+            print(f"  [Tip] For {num_samples:,} samples, batch_size={recommended} may train faster.")
+        elif user_batch_size > 4096:
+            print(f"  [Warning] batch_size={user_batch_size} may exceed 24GB RAM. Consider 2048.")
+        
+        # Always respect user's choice
+        return user_batch_size
+
+
     def train(self, data_path, epochs=50, batch_size=1024, save_path="models/mlx_model.npz"):
 
         # ... loading logic ...
@@ -205,6 +227,9 @@ class MLXImitationTrainer:
             use_memmap = True
         else:
             t_ids, t_feats, t_mask, t_lbls, t_outs = self.load_streaming(data_path)
+        
+        # Auto-scale batch size for large datasets
+        batch_size = self._suggest_batch_size(len(t_ids), batch_size)
         
         print("  Splitting validation set...")
         split = int(len(t_ids) * 0.9)
@@ -264,8 +289,11 @@ class MLXImitationTrainer:
                     print(f"  Labels (first 10): {b_lbls[:10].tolist()}")
                     print(f"  Preds  (first 10): {pred_debug[:10].tolist()}")
 
-                # Compute gradients - call loss_and_grad_fn directly
+                # Compute gradients
                 loss, grads = loss_and_grad_fn(b_ids, b_feats, b_mask, b_lbls, b_outs)
+                
+                # Clip gradients
+                grads, _ = optim.clip_grad_norm(grads, max_norm=1.0)
                 
                 # Update optimizer
                 self.optimizer.update(self.model, grads)
@@ -275,6 +303,7 @@ class MLXImitationTrainer:
                 
                 total_loss += loss.item()
                 steps += 1
+
 
 
             # Validation

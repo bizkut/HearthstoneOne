@@ -13,7 +13,6 @@ import random
 import argparse
 import numpy as np
 import torch
-import mlx.core as mx
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from pathlib import Path
@@ -38,11 +37,26 @@ from scripts.generate_self_play import (
 from ai.transformer_model import CardTransformer, SequenceEncoder
 from ai.mcts import MCTS
 
+def get_device():
+    """Get the best available device (CUDA > MPS > CPU)."""
+    if torch.cuda.is_available():
+        return torch.device('cuda')
+    elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+        return torch.device('mps')
+    return torch.device('cpu')
+
+
 class ModelAgent:
     """Agent that uses the Neural Network + MCTS to select actions."""
     
-    def __init__(self, model_path: str, device: str = 'cpu', simulations: int = 50):
-        self.device = device
+    def __init__(self, model_path: str, device: str = None, simulations: int = 50):
+        # Auto-detect device if not specified
+        if device is None:
+            self.device = get_device()
+        else:
+            self.device = torch.device(device)
+        print(f"Using device: {self.device}")
+        
         self.simulations = simulations
         
         # Load Model
@@ -51,10 +65,7 @@ class ModelAgent:
         
         if os.path.exists(model_path):
             print(f"Loading model from {model_path}...")
-            # Support loading both PT and MLX (converted)
-            # For inference in Python loop, PyTorch is easier unless we rewrite MCTS in MLX.
-            # Assuming we use the converted PyTorch model here for compatibility with MCTS logic.
-            checkpoint = torch.load(model_path, map_location=device)
+            checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
             if 'model_state_dict' in checkpoint:
                  self.model.load_state_dict(checkpoint['model_state_dict'])
             else:
@@ -62,9 +73,11 @@ class ModelAgent:
         else:
             print(f"Warning: Model {model_path} not found. Using random weights.")
             
-        self.model.to(device)
+        self.model.to(self.device)
         self.encoder = SequenceEncoder()
-        self.mcts = MCTS(self.model, self.encoder, num_simulations=simulations)
+        # Note: MCTS requires game_env for cloning. We pass None here and use direct policy inference.
+        # Full MCTS with game cloning is expensive; we use policy network directly for speed.
+        self.mcts = None  # Disabled - using direct policy inference instead
 
     def select_action(self, game: Game, valid_actions: List[Dict]) -> Dict:
         if not valid_actions:
@@ -158,8 +171,8 @@ class AlphaZeroGenerator:
             raise RuntimeError("Failed to load meta decks")
             
         # Initialize Agent
-        # Uses PyTorch model for inference (converted from MLX)
-        self.agent = ModelAgent(model_path, device='cpu') # CPU is safer for multiprocessing if added later
+        # Auto-detect best device (CUDA/MPS/CPU)
+        self.agent = ModelAgent(model_path)  # Device auto-detected
         
         self.games_played = 0
         self.games_failed = 0
