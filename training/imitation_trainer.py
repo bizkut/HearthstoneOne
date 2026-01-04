@@ -89,8 +89,13 @@ class ReplayDataset(Dataset):
                     pass
                  self.cached_action_labels[i] = sample.get('action_label', 0)
                  self.cached_outcomes[i] = sample.get('game_outcome', 0.0)
-                 
-            print("Dataset successfully cached in VRAM.")
+            
+            print("Dataset successfully cached in VRAM. Freeing System RAM...")
+            del self.samples
+            self.samples = []
+            import gc
+            gc.collect()
+            print("System RAM freed.")
 
     
     def __len__(self):
