@@ -117,24 +117,19 @@ class MLXImitationTrainer:
         print(f"Starting Training on {len(t_ids)} samples (MPS/GPU)")
         best_acc = 0.0
         
-        # Define training steps locally to capture self.model correctly
-        def loss_fn(model, c_ids, c_feats, mask, lbls, outs):
+        # Capture model reference for use in loss function
+        model = self.model
+        
+        # Define loss function - model accessed via closure, NOT as argument
+        def loss_fn(c_ids, c_feats, mask, lbls, outs):
             logits, value = model(c_ids, c_feats, mask)
             p_loss = mx.mean(nn.losses.cross_entropy(logits, lbls))
             v_loss = mx.mean(nn.losses.mse_loss(value, outs))
             return p_loss + 0.5 * v_loss
 
-        # Capture self.model in the closure of the compiled function
-        # We perform the value_and_grad transform on the model structure
-        loss_and_grad_fn = nn.value_and_grad(self.model, loss_fn)
+        # Create value_and_grad wrapper - computes gradients w.r.t model's trainable params
+        loss_and_grad_fn = nn.value_and_grad(model, loss_fn)
 
-        @mx.compile
-        def step_fn(c_ids, c_feats, mask, lbls, outs):
-            # We must pass self.model to the transformed function
-            loss, grads = loss_and_grad_fn(self.model, c_ids, c_feats, mask, lbls, outs)
-            return loss, grads
-
-        @mx.compile
         def eval_step(c_ids, c_feats, mask, lbls):
             logits, _ = self.model(c_ids, c_feats, mask)
             preds = mx.argmax(logits, axis=1)
@@ -168,8 +163,8 @@ class MLXImitationTrainer:
                     print(f"  Labels (first 10): {b_lbls[:10].tolist()}")
                     print(f"  Preds  (first 10): {pred_debug[:10].tolist()}")
 
-                # Compute gradients
-                loss, grads = step_fn(b_ids, b_feats, b_mask, b_lbls, b_outs)
+                # Compute gradients - call loss_and_grad_fn directly
+                loss, grads = loss_and_grad_fn(b_ids, b_feats, b_mask, b_lbls, b_outs)
                 
                 # Update optimizer
                 self.optimizer.update(self.model, grads)
