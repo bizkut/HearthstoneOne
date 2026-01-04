@@ -2,8 +2,8 @@
 
 
 def battlecry(game, source, target):
-    if source.controller.hero.weapon:
-        w = source.controller.hero.weapon
+    if source.controller.weapon:
+        w = source.controller.weapon
         source.attack += w.attack
         source.max_health += w.durability
         source.health += w.durability

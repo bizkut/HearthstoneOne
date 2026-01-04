@@ -4,5 +4,5 @@
 def on_play(game, source, target):
     source.controller.draw(2)
     if source.controller.mana == 0: # Finale
-        if source.controller.hero.weapon:
-            source.controller.hero.weapon.attack += 2
+        if source.controller.weapon:
+            source.controller.weapon.attack += 2
