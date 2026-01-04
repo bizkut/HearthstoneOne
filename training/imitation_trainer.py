@@ -159,6 +159,9 @@ class ImitationTrainer:
             self.optimizer, T_max=100, eta_min=1e-6
         )
         
+        # AMP Scaler for mixed precision training
+        self.scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
+        
         self.batch_size = batch_size
         self.train_history = []
     
@@ -188,24 +191,31 @@ class ImitationTrainer:
                 if outcomes.dim() == 1:
                      outcomes = outcomes.unsqueeze(1)
             
-            # Forward pass
-            policy, value = self.model(card_ids, card_features, attention_mask)
+            # Mixed Precision Forward Pass & Loss
+            with torch.cuda.amp.autocast(enabled=torch.cuda.is_available()):
+                # Forward pass
+                policy, value = self.model(card_ids, card_features, attention_mask)
+                
+                # Policy loss (NLL for log-probabilities)
+                log_policy = torch.log(policy + 1e-8)
+                policy_loss = F.nll_loss(log_policy, action_labels)
+                
+                # Value loss (MSE with game outcome)
+                value_loss = F.mse_loss(value, outcomes)
+                
+                # Combined loss
+                loss = policy_loss + 0.5 * value_loss
             
-            # Policy loss (NLL for log-probabilities)
-            log_policy = torch.log(policy + 1e-8)
-            policy_loss = F.nll_loss(log_policy, action_labels)
-            
-            # Value loss (MSE with game outcome)
-            value_loss = F.mse_loss(value, outcomes)
-            
-            # Combined loss
-            loss = policy_loss + 0.5 * value_loss
-            
-            # Backward pass
+            # Backward pass with scaler
             self.optimizer.zero_grad()
-            loss.backward()
+            self.scaler.scale(loss).backward()
+            
+            # Unscale before clipping
+            self.scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
-            self.optimizer.step()
+            
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
             
             total_loss += loss.item()
             num_batches += 1
