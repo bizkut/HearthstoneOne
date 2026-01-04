@@ -407,8 +407,8 @@ if __name__ == "__main__":
     
     # Create model
     if args.xlarge:
-        print("Using XLARGE model config (512 hidden, 8 layers, 12 heads) - Best for CUDA")
-        model = CardTransformer(hidden_dim=512, num_layers=8, num_heads=12, dropout=0.15)
+        print("Using XLARGE model config (512 hidden, 8 layers, 8 heads) - Best for CUDA")
+        model = CardTransformer(hidden_dim=512, num_layers=8, num_heads=8, dropout=0.15)
     elif args.large:
         print("Using LARGE model config (256 hidden, 6 layers, 0.2 dropout)")
         model = CardTransformer(hidden_dim=256, num_layers=6, num_heads=8, dropout=0.2)
