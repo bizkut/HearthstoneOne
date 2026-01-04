@@ -186,6 +186,19 @@ python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --x
 
 ---
 
+#### Which Script Should I Use?
+
+| Phase | Script | When to Use |
+|-------|--------|-------------|
+| **Bootstrap** | `generate_self_play.py` | First-time training, no model yet |
+| **Iteration Loop** | `generate_alphazero_play.py` | Continuous improvement (fast) |
+| **Final Polish** | `generate_mcts_play.py` | Best quality before deployment (slow) |
+
+> [!TIP]
+> For practical training, use `generate_alphazero_play.py` in your iteration loop. Save `generate_mcts_play.py` for the final training run when you want maximum quality.
+
+---
+
 #### Apple Silicon (MLX) Training
 For M1/M2/M3/M4 Macs with large datasets:
 
