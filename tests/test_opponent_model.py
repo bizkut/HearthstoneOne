@@ -127,6 +127,42 @@ class TestOpponentModel(unittest.TestCase):
         self.assertIn('archetype', state)
         self.assertIn('strategy', state)
         self.assertIn('face_damage', state)
+        
+    def test_clone_hand_tracker(self):
+        self.model.hand_tracker.observe_card_played(1, 1)
+        cloned_tracker = self.model.hand_tracker.clone()
+        
+        # Verify copied state
+        self.assertEqual(len(cloned_tracker.cards_played), 1)
+        
+        # Verify independence
+        cloned_tracker.observe_card_played(2, 1)
+        self.assertEqual(len(cloned_tracker.cards_played), 2)
+        self.assertEqual(len(self.model.hand_tracker.cards_played), 1)
+    
+    def test_clone_strategy_predictor(self):
+        self.model.strategy_predictor.observe_action(OpponentStrategyPredictor.ACTION_ATTACK_FACE, 5)
+        cloned_predictor = self.model.strategy_predictor.clone()
+        
+        # Verify copied state
+        self.assertEqual(cloned_predictor.damage_dealt_to_face, 5)
+        
+        # Verify independence
+        cloned_predictor.observe_action(OpponentStrategyPredictor.ACTION_ATTACK_FACE, 5)
+        self.assertEqual(cloned_predictor.damage_dealt_to_face, 10)
+        self.assertEqual(self.model.strategy_predictor.damage_dealt_to_face, 5)
+    
+    def test_clone_model(self):
+        self.model.observe_card_played(1, 1)
+        cloned_model = self.model.clone()
+        
+        # Verify hand tracker cloned state
+        self.assertEqual(len(cloned_model.hand_tracker.cards_played), 1)
+        
+        # Verify independence
+        cloned_model.observe_card_played(2, 1)
+        self.assertEqual(len(cloned_model.hand_tracker.cards_played), 2)
+        self.assertEqual(len(self.model.hand_tracker.cards_played), 1)
 
 
 if __name__ == '__main__':

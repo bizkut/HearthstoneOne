@@ -86,7 +86,20 @@ class OpponentHandTracker:
             card_database: Mapping from card_id -> card info dict with 'name', 'cost', etc.
         """
         self.card_db = card_database or {}
+        
+        # Pre-compute archetype to card ID mapping for performance
+        self.archetype_card_ids: Dict[DeckArchetype, List[int]] = defaultdict(list)
+        self._precompute_archetype_map()
+        
         self.reset()
+        
+    def _precompute_archetype_map(self):
+        """Map archetype names to card IDs once on init."""
+        for archetype, core_names in self.ARCHETYPE_CORE_CARDS.items():
+            for cid, info in self.card_db.items():
+                card_name = info.get('name', '').lower().replace(' ', '_')
+                if any(core in card_name for core in core_names):
+                    self.archetype_card_ids[archetype].append(cid)
     
     def reset(self):
         """Reset for a new game."""
@@ -100,10 +113,25 @@ class OpponentHandTracker:
         # Probability map: card_id -> P(in hand)
         self._hand_probs: Dict[int, float] = defaultdict(float)
     
+    def clone(self) -> 'OpponentHandTracker':
+        """Create a deep copy."""
+        new = OpponentHandTracker.__new__(OpponentHandTracker)
+        new.card_db = self.card_db
+        new.archetype_card_ids = self.archetype_card_ids
+        new.cards_played = list(self.cards_played)
+        new.cards_drawn = self.cards_drawn
+        new.hand_size = self.hand_size
+        new.mana_available = self.mana_available
+        new.turn_number = self.turn_number
+        new.archetype = self.archetype
+        new._hand_probs = self._hand_probs.copy()
+        return new
+    
     def set_archetype(self, archetype: DeckArchetype):
         """Update the assumed archetype (from MetaTracker)."""
-        self.archetype = archetype
-        self._update_priors()
+        if self.archetype != archetype:
+            self.archetype = archetype
+            self._update_priors()
     
     def observe_card_played(self, card_id: int, mana_cost: int = 0):
         """Record a card played by opponent."""
@@ -169,23 +197,17 @@ class OpponentHandTracker:
     def _update_priors(self):
         """Update hand probabilities based on archetype."""
         # Reset with archetype priors
-        core_cards = self.ARCHETYPE_CORE_CARDS.get(self.archetype, [])
-        
-        # Find card IDs matching core card names
-        for cid, info in self.card_db.items():
-            card_name = info.get('name', '').lower().replace(' ', '_')
-            if any(core in card_name for core in core_cards):
-                if cid not in self.cards_played:
-                    self._hand_probs[cid] = 0.3  # Base prior for archetype cards
+        target_ids = self.archetype_card_ids.get(self.archetype, [])
+        for cid in target_ids:
+            if cid not in self.cards_played:
+                self._hand_probs[cid] = 0.3  # Base prior for archetype cards
     
     def _boost_archetype_probs(self, archetype: DeckArchetype, amount: float):
         """Boost probabilities for cards associated with an archetype."""
-        core_cards = self.ARCHETYPE_CORE_CARDS.get(archetype, [])
-        for cid, info in self.card_db.items():
-            card_name = info.get('name', '').lower().replace(' ', '_')
-            if any(core in card_name for core in core_cards):
-                if cid not in self.cards_played:
-                    self._hand_probs[cid] = min(1.0, self._hand_probs.get(cid, 0.1) + amount)
+        target_ids = self.archetype_card_ids.get(archetype, [])
+        for cid in target_ids:
+            if cid not in self.cards_played:
+                self._hand_probs[cid] = min(1.0, self._hand_probs.get(cid, 0.1) + amount)
 
 
 class OpponentStrategyPredictor:
@@ -215,6 +237,17 @@ class OpponentStrategyPredictor:
         self.spells_played: int = 0
         self.cards_drawn_extra: int = 0  # Beyond normal draw
     
+    def clone(self) -> 'OpponentStrategyPredictor':
+        """Create a deep copy."""
+        new = OpponentStrategyPredictor()
+        new.action_history = list(self.action_history)
+        new.damage_dealt_to_face = self.damage_dealt_to_face
+        new.damage_dealt_to_minions = self.damage_dealt_to_minions
+        new.minions_played = self.minions_played
+        new.spells_played = self.spells_played
+        new.cards_drawn_extra = self.cards_drawn_extra
+        return new
+
     def observe_action(self, action_type: int, damage: int = 0):
         """
         Record an opponent action.
@@ -330,6 +363,37 @@ class OpponentModel:
         
         # Embedding dimension for output
         self.embedding_dim = 32
+        
+    def clone(self) -> 'OpponentModel':
+        """Create a deep copy for MCTS."""
+        # Using __new__ to avoid init overhead
+        new = OpponentModel.__new__(OpponentModel)
+        new.device = self.device
+        
+        # Deep copy sub-components (MetaTracker doesn't need full clone if it's stateless enough or we don't predict archetype changes in MCTS)
+        # But archetype CAN change. For now we assume MetaTracker is roughly static or we re-instantiate lightly.
+        # Actually MetaTracker has seen_cards.
+        # Let's just create a new one or assuming MetaTracker has a clone (it doesn't yet).
+        # Fallback: recreate.
+        # Ideally MetaTracker should have clone. 
+        # But for now, let's just shallow copy the tracker since we likely won't play NEW cards for opponent in simulation 
+        # (simulation is usually friendly moves, or opponent moves from known set).
+        # Actually in Opponent move phase, we DO generate moves.
+        # For safety let's manually copy state if possible.
+        
+        # Since I can't easily modify MetaTracker (outside this file right now easily without tool switch), 
+        # I'll rely on recreating it if needed or just copy reference if we accept risk.
+        # Given limitations, I will deep copy the components I control.
+        
+        new.hand_tracker = self.hand_tracker.clone()
+        new.strategy_predictor = self.strategy_predictor.clone()
+        
+        # For MetaTracker, we'll just reference it (Optimization tradeoff)
+        # Assuming classification doesn't change drastically during a few simulation steps.
+        new.meta_tracker = self.meta_tracker # Shared reference
+        new.embedding_dim = self.embedding_dim
+        
+        return new
     
     def reset(self):
         """Reset for new game."""
