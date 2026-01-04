@@ -70,7 +70,7 @@ docker compose down
 ### Installation
 ```bash
 # Clone
-git clone https://github.com/Kevzi/-HearthstoneOne.git
+git clone https://github.com/bizkut/HearthstoneOne.git
 cd HearthstoneOne
 
 # Create virtual environment
