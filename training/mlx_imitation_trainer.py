@@ -1,14 +1,16 @@
 """
 MLX Imitation Learning Trainer for HearthstoneOne AI.
 
-Optimized for Apple Silicon (M4 Pro).
-Uses pure functional state updates to ensure weights commit correctly on GPU.
+Optimized for Apple Silicon (M1/M2/M3/M4).
+Auto-converts JSON input to binary format and outputs PyTorch-compatible model.
 """
 
 import os
 import sys
 import time
 import json
+import tempfile
+import shutil
 import numpy as np
 import mlx.core as mx
 import mlx.nn as nn
@@ -18,6 +20,105 @@ import ijson
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ai.mlx_transformer_model import CardTransformer
+
+
+def convert_json_to_binary(input_path, output_dir, seq_len=24):
+    """Convert JSON dataset to binary memmap format (inline version)."""
+    os.makedirs(output_dir, exist_ok=True)
+    
+    print(f"Converting JSON to binary format...")
+    num_samples = 0
+    has_samples_key = False
+    
+    with open(input_path, 'rb') as f:
+        chunk = f.read(2048)
+        if b'"samples":' in chunk:
+            has_samples_key = True
+    
+    prefix = "samples.item" if has_samples_key else "item"
+    
+    # Count samples
+    with open(input_path, 'rb') as f:
+        for _ in ijson.items(f, prefix):
+            num_samples += 1
+    print(f"  Found {num_samples} samples")
+    
+    # Create memmaps
+    mm_ids = np.memmap(os.path.join(output_dir, "card_ids.npy"), dtype='int32', mode='w+', shape=(num_samples, seq_len))
+    mm_feats = np.memmap(os.path.join(output_dir, "card_features.npy"), dtype='float32', mode='w+', shape=(num_samples, seq_len, 11))
+    mm_lbls = np.memmap(os.path.join(output_dir, "labels.npy"), dtype='int32', mode='w+', shape=(num_samples,))
+    mm_outs = np.memmap(os.path.join(output_dir, "outcomes.npy"), dtype='float32', mode='w+', shape=(num_samples, 1))
+    
+    # Stream data
+    with open(input_path, 'rb') as f:
+        idx = 0
+        for s in ijson.items(f, prefix):
+            c_ids = s.get('card_ids', [])
+            ln = min(len(c_ids), seq_len)
+            if ln > 0:
+                mm_ids[idx, :ln] = c_ids[:ln]
+            
+            c_feats = s.get('card_features', [])
+            if c_feats:
+                feat_arr = np.array(c_feats, dtype=np.float32)
+                ln = min(feat_arr.shape[0], seq_len)
+                if ln > 0:
+                    mm_feats[idx, :ln] = feat_arr[:ln]
+            
+            mm_lbls[idx] = s.get('action_label', 0)
+            mm_outs[idx] = s.get('game_outcome', 0.0)
+            idx += 1
+            
+            if idx % 10000 == 0:
+                sys.stdout.write(f"\r  Processed {idx}/{num_samples}...")
+                sys.stdout.flush()
+    
+    # Flush and save metadata
+    mm_ids.flush(); mm_feats.flush(); mm_lbls.flush(); mm_outs.flush()
+    
+    meta = {'num_samples': num_samples, 'seq_len': seq_len, 'feature_dim': 11}
+    with open(os.path.join(output_dir, "metadata.json"), 'w') as f:
+        json.dump(meta, f)
+    
+    print(f"\n  Conversion complete ({num_samples} samples)")
+    return output_dir
+
+
+def convert_mlx_to_pytorch(mlx_path, pt_path, large=False):
+    """Convert MLX weights to PyTorch model (inline version)."""
+    import torch
+    from ai.transformer_model import CardTransformer as TorchTransformer
+    
+    print(f"Converting MLX model to PyTorch...")
+    mlx_weights = mx.load(mlx_path)
+    
+    if large:
+        pt_model = TorchTransformer(hidden_dim=256, num_layers=6, num_heads=8, dropout=0.2)
+    else:
+        pt_model = TorchTransformer(hidden_dim=128, num_layers=4, num_heads=4)
+    
+    pt_state = pt_model.state_dict()
+    new_state = {}
+    matched = 0
+    
+    for key, val in mlx_weights.items():
+        val_np = np.array(val)
+        val_pt = torch.from_numpy(val_np)
+        
+        if key in pt_state:
+            if pt_state[key].shape != val_pt.shape:
+                if len(val_pt.shape) == 2 and val_pt.shape[::-1] == pt_state[key].shape:
+                    val_pt = val_pt.T
+                else:
+                    continue
+            new_state[key] = val_pt
+            matched += 1
+    
+    pt_model.load_state_dict(new_state, strict=False)
+    os.makedirs(os.path.dirname(pt_path) or '.', exist_ok=True)
+    torch.save(pt_model.state_dict(), pt_path)
+    print(f"  Saved PyTorch model to {pt_path} ({matched} layers)")
+
 
 def batch_iterate(batch_size, *args):
     """Yield batches of data."""
@@ -203,19 +304,57 @@ class MLXImitationTrainer:
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--data', type=str, required=True)
+    parser = argparse.ArgumentParser(description="MLX Imitation Trainer (Apple Silicon)")
+    parser.add_argument('--data', type=str, required=True, help="JSON or binary data path")
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=1024)
     parser.add_argument('--large', action='store_true')
+    parser.add_argument('--xlarge', action='store_true')
     parser.add_argument('--lr', type=float, default=5e-4)
-    parser.add_argument('--output', type=str, default="models/mlx_model.npz")
+    parser.add_argument('--output', type=str, default="models/transformer_model.pt", 
+                        help="Output path (.pt for PyTorch, .npz for MLX)")
     args = parser.parse_args()
     
-    if args.large:
+    # Auto-convert JSON to binary if needed
+    data_path = args.data
+    temp_binary_dir = None
+    
+    if data_path.endswith('.json'):
+        # Create cache directory based on JSON filename
+        cache_dir = data_path.replace('.json', '_mlx_cache')
+        
+        # Check if cache exists and is up-to-date
+        meta_path = os.path.join(cache_dir, "metadata.json")
+        json_mtime = os.path.getmtime(data_path) if os.path.exists(data_path) else 0
+        cache_mtime = os.path.getmtime(meta_path) if os.path.exists(meta_path) else 0
+        
+        if cache_mtime < json_mtime:
+            print(f"JSON file detected, converting to binary cache...")
+            convert_json_to_binary(data_path, cache_dir)
+        else:
+            print(f"Using cached binary data from {cache_dir}")
+        
+        data_path = cache_dir
+    
+    # Select model size
+    if args.xlarge:
+        model = CardTransformer(hidden_dim=512, num_layers=8, num_heads=8, dropout=0.1)
+        large_flag = True  # For conversion
+    elif args.large:
         model = CardTransformer(hidden_dim=256, num_layers=6, num_heads=8, dropout=0.2)
+        large_flag = True
     else:
         model = CardTransformer(hidden_dim=128, num_layers=4, num_heads=4)
-        
+        large_flag = False
+    
+    # Train
+    mlx_output = args.output.replace('.pt', '.npz') if args.output.endswith('.pt') else args.output
     trainer = MLXImitationTrainer(model, learning_rate=args.lr)
-    trainer.train(args.data, epochs=args.epochs, batch_size=args.batch_size, save_path=args.output)
+    trainer.train(data_path, epochs=args.epochs, batch_size=args.batch_size, save_path=mlx_output)
+    
+    # Auto-convert to PyTorch if .pt output requested
+    if args.output.endswith('.pt'):
+        convert_mlx_to_pytorch(mlx_output, args.output, large=large_flag)
+        print(f"\nTraining complete! PyTorch model saved to: {args.output}")
+    else:
+        print(f"\nTraining complete! MLX model saved to: {mlx_output}")
