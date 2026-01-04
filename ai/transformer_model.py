@@ -132,7 +132,7 @@ class CardTransformer(nn.Module):
             dropout=dropout,
             batch_first=True  # [batch, seq, dim]
         )
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers, enable_nested_tensor=False)
         
         # [CLS] token embedding (learnable)
         self.cls_token = nn.Parameter(torch.randn(1, 1, hidden_dim))

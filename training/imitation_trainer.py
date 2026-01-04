@@ -67,29 +67,26 @@ class ReplayDataset(Dataset):
         
         if self.gpu_cache and self.device and self.samples:
             print(f"Caching {len(self.samples)} samples to {self.device}...")
-            # Pre-allocate tensors
+            
+            # Vectorized loading (much faster than loop)
             seq_len = 24
-            num_samples = len(self.samples)
-            self._num_samples = num_samples  # Store count BEFORE deleting samples
             
-            self.cached_card_ids = torch.empty((num_samples, seq_len), dtype=torch.long, device=self.device)
-            self.cached_card_features = torch.empty((num_samples, seq_len, 11), dtype=torch.float32, device=self.device)
-            self.cached_attention_mask = torch.empty((num_samples, seq_len), dtype=torch.bool, device=self.device)
-            self.cached_action_labels = torch.empty((num_samples,), dtype=torch.long, device=self.device)
-            self.cached_outcomes = torch.empty((num_samples,), dtype=torch.float32, device=self.device)
+            # Extract data into lists first
+            print("  Extracting data...")
+            all_card_ids = [s.get('card_ids', [0]*seq_len) for s in self.samples]
+            all_features = [s.get('card_features', [[0]*11]*seq_len) for s in self.samples]
+            all_labels = [s.get('action_label', 0) for s in self.samples]
+            all_outcomes = [s.get('game_outcome', 0.0) for s in self.samples]
             
-            # Fill tensors (batch processing for speed)
-            # Note: Doing this loop in python is slow, but only happens once.
-            for i, sample in enumerate(self.samples):
-                 if 'card_ids' in sample:
-                    self.cached_card_ids[i] = torch.tensor(sample['card_ids'], dtype=torch.long, device=self.device)
-                    self.cached_card_features[i] = torch.tensor(sample['card_features'], dtype=torch.float32, device=self.device)
-                    self.cached_attention_mask[i] = (self.cached_card_ids[i] != 0)
-                 else:
-                    # Fallback dummy
-                    pass
-                 self.cached_action_labels[i] = sample.get('action_label', 0)
-                 self.cached_outcomes[i] = sample.get('game_outcome', 0.0)
+            print("  Moving to device...")
+            # Create tensors directly on device
+            self.cached_card_ids = torch.tensor(all_card_ids, dtype=torch.long, device=self.device)
+            self.cached_card_features = torch.tensor(all_features, dtype=torch.float32, device=self.device)
+            self.cached_attention_mask = (self.cached_card_ids != 0)
+            self.cached_action_labels = torch.tensor(all_labels, dtype=torch.long, device=self.device)
+            self.cached_outcomes = torch.tensor(all_outcomes, dtype=torch.float32, device=self.device)
+            
+            self._num_samples = len(self.samples)
             
             print("Dataset successfully cached in VRAM. Freeing System RAM...")
             del self.samples
@@ -160,7 +157,10 @@ class ImitationTrainer:
         )
         
         # AMP Scaler for mixed precision training
-        self.scaler = torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())
+        # Use modern torch.amp API instead of deprecated torch.cuda.amp
+        self.use_amp = self.device.type in ['cuda', 'mps']
+        scaler_device = self.device.type if self.device.type == 'cuda' else 'cuda' # GradScaler is primarily for CUDA
+        self.scaler = torch.amp.GradScaler(device=scaler_device, enabled=(self.device.type == 'cuda'))
         
         self.batch_size = batch_size
         self.train_history = []
@@ -192,7 +192,7 @@ class ImitationTrainer:
                      outcomes = outcomes.unsqueeze(1)
             
             # Mixed Precision Forward Pass & Loss
-            with torch.cuda.amp.autocast(enabled=torch.cuda.is_available()):
+            with torch.amp.autocast(device_type=self.device.type, enabled=self.use_amp):
                 # Forward pass
                 policy, value = self.model(card_ids, card_features, attention_mask)
                 

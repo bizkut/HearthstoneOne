@@ -220,9 +220,12 @@ class CardTransformer(nn.Module):
             # (1 - full_mask) * -1e9
             attn_mask = (1.0 - full_mask) * -1e9
             
-            # Shape for attention: (batch, seq_len, seq_len)
-            # Broadcasting works, but MLX TransformerEncoderLayer expects mask to be compatible with attention
+            # Shape for attention: (batch, heads, seq_len, seq_len)
+            # We want to broadcast across heads (axis 1) and query sequence (axis 2)
+            # Input mask is for keys (axis 3)
+            # Reshape to (batch, 1, 1, seq_len)
             attn_mask = mx.expand_dims(attn_mask, axis=1) # [batch, 1, seq_len]
+            attn_mask = mx.expand_dims(attn_mask, axis=1) # [batch, 1, 1, seq_len]
         
         # Transformer encoding
         for layer in self.layers:

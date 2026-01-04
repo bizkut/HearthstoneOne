@@ -4,7 +4,7 @@ pytorch-lightning>=2.0.0
 onnxruntime-gpu>=1.16.0
 
 # Simulator
-@ git+https://github.com/jleclanche/fireplace.git
+fireplace @ git+https://github.com/jleclanche/fireplace.git
 
 # GUI
 PyQt6>=6.5.0
