@@ -242,6 +242,8 @@ class MLXImitationTrainer:
 
         print(f"Starting Training on {len(t_ids)} samples (MPS/GPU)")
         best_acc = 0.0
+        patience = 0
+        max_patience = 10
         
         # Capture model reference for use in loss function
         model = self.model
@@ -327,9 +329,15 @@ class MLXImitationTrainer:
             
             if acc > best_acc:
                 best_acc = acc
+                patience = 0
                 os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
                 self.model.save_weights(save_path)
                 print(f"  [Saved Best Model]")
+            else:
+                patience += 1
+                if patience >= max_patience:
+                    print(f"\n  [Early Stopping] No improvement for {max_patience} epochs. Best accuracy: {best_acc:.2%}")
+                    break
 
 if __name__ == "__main__":
     import argparse
