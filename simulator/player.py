@@ -249,6 +249,9 @@ class Player(Entity):
     
     def add_to_hand(self, card: Card) -> bool:
         """Add a card to hand (not from deck)."""
+        if card is None:
+            return False  # Guard against missing card data
+        
         if len(self.hand) >= self.MAX_HAND_SIZE:
             card.zone = Zone.GRAVEYARD
             self.graveyard.append(card)
