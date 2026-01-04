@@ -243,7 +243,43 @@ HearthstoneOne/
 
 ---
 
-## 🖥️ Hardware Compatibility
+## 🧠 Training (Apple Silicon Optimized)
+
+This project features a highly optimized training pipeline designed for Apple Silicon (M1/M2/M3/M4) chips, utilizing the **MLX** framework and **Unified Memory**.
+
+### Phase 1: Imitation Learning (Warm Start)
+Train the model on massive datasets (e.g., 2.7M+ samples) without RAM bottlenecks using disk-based streaming.
+
+1.  **Prepare Data (Convert to Binary Memmap):**
+    ```bash
+    python3 scripts/convert_to_binary.py --input data/self_play_data2.json --output data/binary_data_large
+    ```
+2.  **Train with MLX (M4 Pro Optimized):**
+    ```bash
+    python3 training/mlx_imitation_trainer.py --data data/binary_data_large --epochs 100 --batch-size 1024 --large --lr 5e-4
+    ```
+    *Performance: ~2s per epoch on M4 Pro (25k subset), handles 50GB+ datasets on 24GB RAM.*
+
+### Phase 2: AlphaZero Self-Play (RL)
+Improve the model by having it play against itself and learn from the outcomes.
+
+1.  **Convert MLX Model to PyTorch (for Inference):**
+    ```bash
+    python3 scripts/convert_mlx_to_pt.py --mlx models/mlx_model.npz --pt models/transformer_model.pt --large
+    ```
+2.  **Generate Self-Play Games:**
+    ```bash
+    python3 scripts/generate_alphazero_play.py --num-games 5000 --output data/rl_gen_1.json --model models/transformer_model.pt
+    ```
+3.  **Loop:** Convert new data -> Train (Phase 1) -> Generate -> Repeat.
+
+### ☁️ Hugging Face Integration
+Share your massive datasets with the community in optimized Parquet format.
+```bash
+python3 scripts/push_to_huggingface.py --input data/self_play_data2.json --repo your-username/hearthstone-replays
+```
+
+## 🛠 Installation
 
 | GPU | Training | Inference |
 |-----|----------|-----------|

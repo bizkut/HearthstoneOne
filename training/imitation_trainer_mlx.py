@@ -129,7 +129,7 @@ class ImitationTrainer:
         # Compile the training step
         self.state = [self.model.state, self.optimizer.state]
         
-        @mx.compile
+        # @mx.compile
         def step(ids, feats, m, labels, out):
             loss_and_grad_fn = nn.value_and_grad(self.model, loss_fn)
             (loss, (policy, value)), grads = loss_and_grad_fn(self.model, ids, feats, m, labels, out)
@@ -162,7 +162,7 @@ class ImitationTrainer:
             loss, _, _ = self.train_step(ids, feats, m, labels, out)
             
             # Force eval to get value
-            mx.eval(loss, self.state)
+            mx.eval(loss, self.model.parameters()) # Just eval loss and params to ensure update happened
             
             total_loss += loss.item()
             num_batches += 1
@@ -223,7 +223,16 @@ class ImitationTrainer:
         print(f"Device: {mx.default_device()}")
         
         # Parameter count
-        params = sum(p.size for p in mlx.utils.tree_flatten(self.model.parameters()))
+        def count_params(tree):
+            if isinstance(tree, mx.array):
+                return tree.size
+            elif isinstance(tree, dict):
+                return sum(count_params(v) for v in tree.values())
+            elif isinstance(tree, (list, tuple)):
+                return sum(count_params(v) for v in tree)
+            return 0
+            
+        params = count_params(self.model.parameters())
         print(f"Model params: {params:,}")
         print("=" * 50)
         

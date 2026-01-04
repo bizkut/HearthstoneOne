@@ -234,11 +234,10 @@ class CardTransformer(nn.Module):
         # Use CLS token output for classification
         cls_output = x[:, 0, :]  # [batch, hidden_dim]
         
-        # Policy head
+        # Policy head (return logits for training stability)
         policy_logits = self.policy_head(cls_output)
-        policy = nn.softmax(policy_logits, axis=-1)
         
         # Value head
         value = mx.tanh(self.value_head(cls_output))
         
-        return policy, value
+        return policy_logits, value
