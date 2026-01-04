@@ -86,77 +86,114 @@ pip install -r requirements.txt
 python runtime/websocket_server.py --host localhost --port 9876 --model models/best_model.pt
 ```
 
-### Train Models (Transformer Pipeline)
+### Train Models (Complete Pipeline)
 
-#### Quick Start
+Building the AI model follows a multi-phase approach. **Follow these steps in order:**
+
+---
+
+#### Step 0: Prerequisites
 ```bash
-# 1. Scrape meta decks (first time only)
+# Install dependencies
+pip install -r requirements.txt
+
+# Scrape meta decks (first time only, creates data/meta_deck_lists.json)
 python3 scripts/scrape_top_decks.py
-
-# 2. Generate training data (~2 min for 1000 games)
-python3 scripts/generate_self_play.py --num-games 1000 --output data/self_play_data.json
-
-# 3. Train the model (~6 min for 50 epochs on MPS)
-python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 50 --batch-size 64
 ```
 
-#### Action Space
-The model learns to predict which action to take:
-| Label | Action |
-|-------|--------|
-| 0-9 | Play card from hand (index 0-9) |
-| 10 | Use Hero Power |
-| 11-17 | Attack with minion (board index 0-6) |
-| 18 | Attack with hero (weapon) |
+---
 
-#### Expected Results
-| Dataset Size | Epochs | Accuracy |
-|--------------|--------|----------|
-| 1,000 games | 50 | ~75% |
-| 5,000 games | 100 | ~80%+ |
-| 10,000 games | 100 | ~85%+ |
+#### Step 1: Generate Training Data (Heuristic)
+> Fast data generation using rule-based play. Good for initial training.
 
-#### Advanced Training
 ```bash
-# Generate larger dataset for better accuracy
 python3 scripts/generate_self_play.py --num-games 10000 --output data/self_play_data.json
-
-# Train with more epochs
-python3 training/imitation_trainer.py --data data/self_play_data.json --epochs 100 --batch-size 128 --lr 5e-5
 ```
+*Generates ~30k samples per 1000 games. Expect ~10 min for 10k games.*
 
-### 🚀 CUDA Server Training (Recommended)
+---
 
-For best results, train on a CUDA GPU server:
+#### Step 2: Train the Model (Imitation Learning)
+> Supervised learning on the generated data.
 
 ```bash
-# One-liner for CUDA training
-./scripts/train_cuda.sh
+# Basic training (CPU/MPS)
+python3 training/imitation_trainer.py \
+    --data data/self_play_data.json \
+    --epochs 50 \
+    --batch-size 64
 
-# Or with custom settings
-NUM_GAMES=20000 BATCH_SIZE=512 MODEL_SIZE=xlarge ./scripts/train_cuda.sh
-```
-
-#### Model Sizes
-| Flag | Hidden | Layers | Params | VRAM | Best For |
-|------|--------|--------|--------|------|----------|
-| (default) | 128 | 4 | ~1M | 4GB | Testing |
-| `--large` | 256 | 6 | ~5.5M | 8GB | Good quality |
-| `--xlarge` | 512 | 8 | ~12M | 16GB+ | Best quality |
-
-#### CUDA Training Command
-```bash
-# Generate 20k games (~10 min)
-python3 scripts/generate_self_play.py --num-games 20000 --output data/self_play_data.json
-
-# Train XL model (~2 hours on RTX 3090)
+# CUDA GPU Training (Recommended)
 python3 training/imitation_trainer.py \
     --data data/self_play_data.json \
     --epochs 200 \
-    --batch-size 512 \
-    --lr 5e-4 \
-    --xlarge
+    --batch-size 4096 \
+    --lr 1e-3 \
+    --xlarge \
+    --gpu-cache
 ```
+
+| Model Size | Flag | Hidden | Layers | Params | VRAM |
+|------------|------|--------|--------|--------|------|
+| Default | - | 128 | 4 | ~1M | 4GB |
+| Large | `--large` | 256 | 6 | ~5.5M | 8GB |
+| XLarge | `--xlarge` | 512 | 8 | ~12M | 16GB |
+
+---
+
+#### Step 3: Generate MCTS Data (Reinforcement Learning)
+> Higher quality data using Monte Carlo Tree Search. Run after Step 2.
+
+```bash
+python3 scripts/generate_mcts_play.py \
+    --sims 50 \
+    --games 1000 \
+    --model models/transformer_model.pt \
+    --output data/mcts_data.json
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--sims` | 50 | MCTS simulations per move (50-800) |
+| `--games` | 1000 | Games to generate |
+| `--workers` | 8 | Parallel workers |
+
+---
+
+#### Step 4: Iterate (AlphaZero Loop)
+Repeat Steps 2-3 to improve the model:
+1. Train on combined data (`self_play_data.json` + `mcts_data.json`)
+2. Generate new MCTS data with the improved model
+3. Repeat until performance plateaus
+
+```bash
+# Merge datasets
+python3 -c "import json; d1=json.load(open('data/self_play_data.json')); d2=json.load(open('data/mcts_data.json')); d1['samples'].extend(d2['samples']); json.dump(d1, open('data/combined.json','w'))"
+
+# Train on combined data
+python3 training/imitation_trainer.py --data data/combined.json --epochs 100 --xlarge
+```
+
+---
+
+#### Apple Silicon (MLX) Training
+For M1/M2/M3/M4 Macs with large datasets:
+
+```bash
+# Convert to binary format (handles 50GB+ datasets)
+python3 scripts/convert_to_binary.py \
+    --input data/self_play_data.json \
+    --output data/binary_data
+
+# Train with MLX
+python3 training/mlx_imitation_trainer.py \
+    --data data/binary_data \
+    --epochs 100 \
+    --batch-size 1024 \
+    --large
+```
+
+---
 
 ### Legacy MLP Training
 ```bash
@@ -164,6 +201,8 @@ python training/trainer.py --epochs 100 --output models/
 ```
 
 ---
+
+
 
 ## 🔗 HSTracker Integration
 
@@ -192,21 +231,22 @@ HearthstoneOne integrates with [HSTracker](https://github.com/HearthSim/HSTracke
 ```
 HearthstoneOne/
 ├── ai/                        # 🧠 AI Models
-│   ├── model.py               # MLP policy/value network
-│   ├── transformer_model.py   # Transformer with self-attention
+│   ├── transformer_model.py   # CardTransformer (Main Model)
 │   ├── mcts.py                # Monte Carlo Tree Search
-│   ├── encoder.py             # State encoding (690 dims)
-│   ├── mulligan_policy.py     # Mulligan decision network
-│   └── game_wrapper.py        # Simulator interface
+│   ├── opponent_model.py      # Opponent Modeling (Phase 8)
+│   ├── deck_classifier.py     # Archetype Detection
+│   ├── encoder.py             # State Encoding
+│   └── game_wrapper.py        # Simulator Interface
 │
 ├── training/                  # 🏋️ Training Scripts
 │   ├── imitation_trainer.py   # Transformer Trainer
 │   └── trainer.py             # Legacy AlphaZero Trainer
 │
 ├── scripts/                   # 🛠️ Utility Scripts
-│   ├── generate_self_play.py  # Data Generator
-│   ├── scrape_top_decks.py    # Deck Scraper
-│   └── fetch_meta_decks.py    # Archetype Fetcher
+│   ├── generate_self_play.py  # Heuristic Data Generator (Step 1)
+│   ├── generate_mcts_play.py  # MCTS Data Generator (Step 3)
+│   ├── scrape_top_decks.py    # Meta Deck Scraper
+│   └── convert_to_binary.py   # Binary Format Converter (MLX)
 │
 ├── runtime/                   # 🔌 Runtime Services
 │   ├── websocket_server.py    # WebSocket API
