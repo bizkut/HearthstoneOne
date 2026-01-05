@@ -53,3 +53,8 @@ references/
 # External Repos
 HSTracker/
 
+data/rl_data.json*
+
+# Large cache files
+data/*_mlx_cache/
+data/rl_data.json*

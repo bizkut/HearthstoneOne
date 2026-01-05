@@ -23,6 +23,7 @@ from ai.encoder import FeatureEncoder
 from ai.model import HearthstoneModel
 from ai.mcts import MCTS
 from ai.device import get_best_device
+from ai.actions import ACTION_SPACE_SIZE
 
 import torch
 
@@ -55,7 +56,7 @@ class SuggestionEngine:
         # Try to load model
         if model_path and os.path.exists(model_path):
             try:
-                self.model = HearthstoneModel(self.encoder.input_dim)
+                self.model = HearthstoneModel(self.encoder.input_dim, ACTION_SPACE_SIZE)
                 checkpoint = torch.load(model_path, map_location=self.device, weights_only=False)
                 if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
                     self.model.load_state_dict(checkpoint['model_state_dict'])
